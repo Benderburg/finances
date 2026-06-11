@@ -1,1592 +1,423 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ro">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FinFlow — Учёт финансов</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-  :root {
-    --bg: #0d0f14;
-    --surface: #161921;
-    --surface2: #1e2330;
-    --border: #2a2f3d;
-    --text: #e8eaf0;
-    --text-muted: #7a8099;
-    --accent: #6ee7b7;
-    --accent2: #818cf8;
-    --accent3: #fb7185;
-    --accent4: #fbbf24;
-    --income: #6ee7b7;
-    --expense: #fb7185;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --shadow: 0 8px 32px rgba(0,0,0,0.4);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    top: -200px; left: -200px;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(110,231,183,0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    bottom: -200px; right: -100px;
-    width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(129,140,248,0.06) 0%, transparent 70%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  /* LAYOUT */
-  .app { display: flex; min-height: 100vh; position: relative; z-index: 1; }
-
-  /* SIDEBAR */
-  .sidebar {
-    width: 240px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    z-index: 100;
-    transition: transform 0.3s ease;
-  }
-
-  .logo {
-    padding: 28px 24px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo-text {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
-    font-size: 22px;
-    color: var(--accent);
-    letter-spacing: -0.5px;
-  }
-
-  .logo-sub {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-top: 2px;
-    letter-spacing: 0.5px;
-  }
-
-  .nav { padding: 20px 12px; flex: 1; }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 14px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    color: var(--text-muted);
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
-    margin-bottom: 4px;
-  }
-
-  .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active { background: rgba(110,231,183,0.12); color: var(--accent); }
-  .nav-item .icon { font-size: 18px; width: 20px; text-align: center; }
-
-  .sidebar-footer {
-    padding: 16px 12px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    gap: 8px;
-  }
-
-  .btn-icon {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
-    padding: 10px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-  }
-
-  .btn-icon:hover { background: var(--border); color: var(--text); }
-
-  /* MAIN */
-  .main {
-    margin-left: 240px;
-    flex: 1;
-    padding: 32px;
-    max-width: calc(100vw - 240px);
-  }
-
-  /* PAGES */
-  .page { display: none; animation: fadeIn 0.3s ease; }
-  .page.active { display: block; }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* PAGE HEADER */
-  .page-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 28px;
-  }
-
-  .page-title {
-    font-family: 'Syne', sans-serif;
-    font-weight: 700;
-    font-size: 28px;
-    color: var(--text);
-  }
-
-  .page-subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
-
-  /* BUTTONS */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 20px;
-    border-radius: var(--radius-sm);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
-  }
-
-  .btn-primary {
-    background: var(--accent);
-    color: #0d1a12;
-  }
-  .btn-primary:hover { background: #86efac; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(110,231,183,0.3); }
-
-  .btn-secondary {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  .btn-secondary:hover { background: var(--border); }
-
-  .btn-danger {
-    background: rgba(251,113,133,0.15);
-    color: var(--expense);
-    border: 1px solid rgba(251,113,133,0.3);
-  }
-  .btn-danger:hover { background: rgba(251,113,133,0.25); }
-
-  /* STATS GRID */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 28px;
-  }
-
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.2s;
-  }
-
-  .stat-card:hover { transform: translateY(-2px); }
-
-  .stat-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-  }
-
-  .stat-card.green::before { background: var(--income); }
-  .stat-card.red::before { background: var(--expense); }
-  .stat-card.blue::before { background: var(--accent2); }
-  .stat-card.yellow::before { background: var(--accent4); }
-
-  .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
-
-  .stat-value {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .stat-value.green { color: var(--income); }
-  .stat-value.red { color: var(--expense); }
-  .stat-value.blue { color: var(--accent2); }
-  .stat-value.yellow { color: var(--accent4); }
-
-  .stat-change { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-
-  /* GRID 2 COL */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-  .grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
-
-  /* CARD */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-
-  .card-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  /* TRANSACTIONS */
-  .transaction-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.2s;
-  }
-
-  .transaction-item:last-child { border-bottom: none; padding-bottom: 0; }
-  .transaction-item:first-child { padding-top: 0; }
-
-  .tx-icon {
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .tx-info { flex: 1; min-width: 0; }
-  .tx-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tx-date { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-  .tx-category { font-size: 11px; color: var(--text-muted); background: var(--surface2); padding: 2px 8px; border-radius: 20px; display: inline-block; margin-top: 3px; }
-
-  .tx-amount {
-    font-family: 'Syne', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  .tx-amount.income { color: var(--income); }
-  .tx-amount.expense { color: var(--expense); }
-
-  .tx-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .tx-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; font-size: 14px; }
-  .tx-btn:hover { color: var(--text); background: var(--surface2); }
-  .tx-btn.del:hover { color: var(--expense); }
-
-  /* FORM */
-  .form-group { margin-bottom: 16px; }
-  .form-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; display: block; }
-
-  .form-input, .form-select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    padding: 11px 14px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .form-input:focus, .form-select:focus { border-color: var(--accent); }
-  .form-select option { background: var(--surface2); }
-
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-  /* TYPE TOGGLE */
-  .type-toggle { display: flex; gap: 0; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); margin-bottom: 20px; }
-
-  .type-btn {
-    flex: 1; padding: 10px; text-align: center;
-    cursor: pointer; font-size: 14px; font-weight: 500;
-    background: var(--surface2); color: var(--text-muted);
-    border: none; transition: all 0.2s;
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  .type-btn.active-income { background: rgba(110,231,183,0.2); color: var(--income); }
-  .type-btn.active-expense { background: rgba(251,113,133,0.2); color: var(--expense); }
-
-  /* MODAL */
-  .modal-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.7);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000;
-    opacity: 0; pointer-events: none;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(4px);
-  }
-
-  .modal-overlay.open { opacity: 1; pointer-events: all; }
-
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 28px;
-    width: 100%; max-width: 460px;
-    box-shadow: var(--shadow);
-    transform: translateY(20px);
-    transition: transform 0.2s;
-  }
-
-  .modal-overlay.open .modal { transform: translateY(0); }
-
-  .modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 24px;
-  }
-
-  .modal-title { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; }
-  .modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px; transition: color 0.2s; }
-  .modal-close:hover { color: var(--text); }
-
-  /* PROGRESS BAR */
-  .progress-bar {
-    height: 8px;
-    background: var(--surface2);
-    border-radius: 99px;
-    overflow: hidden;
-    margin: 10px 0;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 99px;
-    transition: width 0.5s ease;
-  }
-
-  /* BUDGET ITEMS */
-  .budget-item {
-    padding: 16px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .budget-item:last-child { border-bottom: none; }
-
-  .budget-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-  .budget-item-name { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
-  .budget-item-amounts { font-size: 13px; color: var(--text-muted); }
-  .budget-item-amounts span { color: var(--text); font-weight: 500; }
-
-  /* GOALS */
-  .goal-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    transition: transform 0.2s;
-  }
-  .goal-card:hover { transform: translateY(-2px); }
-
-  .goal-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-  .goal-icon { font-size: 28px; }
-  .goal-name { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-  .goal-amounts { font-size: 13px; color: var(--text-muted); }
-  .goal-amounts strong { color: var(--text); }
-  .goal-percent { font-size: 22px; font-weight: 700; color: var(--accent); font-family: 'Syne', sans-serif; }
-
-  .goals-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-
-  /* FILTER BAR */
-  .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-  .filter-chip {
-    padding: 7px 16px; border-radius: 99px;
-    background: var(--surface); border: 1px solid var(--border);
-    color: var(--text-muted); font-size: 13px; cursor: pointer;
-    transition: all 0.2s;
-  }
-  .filter-chip:hover { border-color: var(--accent); color: var(--text); }
-  .filter-chip.active { background: rgba(110,231,183,0.12); border-color: var(--accent); color: var(--accent); }
-
-  /* CHART CONTAINER */
-  .chart-container { position: relative; height: 260px; }
-
-  /* EMPTY STATE */
-  .empty-state {
-    text-align: center; padding: 48px 24px;
-    color: var(--text-muted);
-  }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
-  .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
-
-  /* TOASTS */
-  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
-
-  .toast {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px 20px;
-    font-size: 14px;
-    box-shadow: var(--shadow);
-    animation: slideIn 0.3s ease;
-    display: flex; align-items: center; gap: 10px;
-    min-width: 260px;
-  }
-
-  .toast.success { border-left: 3px solid var(--income); }
-  .toast.error { border-left: 3px solid var(--expense); }
-  .toast.info { border-left: 3px solid var(--accent2); }
-
-  @keyframes slideIn {
-    from { transform: translateX(100px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-
-  /* MOBILE TOGGLE */
-  .mob-toggle { display: none; }
-
-  /* TAGS */
-  .tag {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px; border-radius: 99px;
-    font-size: 12px; font-weight: 500;
-  }
-  .tag.income { background: rgba(110,231,183,0.15); color: var(--income); }
-  .tag.expense { background: rgba(251,113,133,0.15); color: var(--expense); }
-
-  /* SCROLLBAR */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  /* RESPONSIVE */
-  @media (max-width: 900px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.open { transform: translateX(0); }
-    .main { margin-left: 0; padding: 20px; max-width: 100vw; }
-    .mob-toggle { display: flex; position: fixed; top: 16px; left: 16px; z-index: 200; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; color: var(--text); font-size: 18px; }
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
-    .form-row { grid-template-columns: 1fr; }
-  }
-
-  /* MONTH NAV */
-  .month-nav { display: flex; align-items: center; gap: 12px; }
-  .month-nav button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.2s; }
-  .month-nav button:hover { background: var(--border); }
-  .month-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; min-width: 150px; text-align: center; }
-
-  .section-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-
-  .currency-sym { font-size: 16px; opacity: 0.7; }
-
-  input[type="hidden"] { display: none; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Norocel — evidența finanțelor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script type="module" src="./assets/js/app.js"></script>
 </head>
 <body>
-
-<!-- MOBILE TOGGLE -->
-<button class="mob-toggle" onclick="toggleSidebar()">☰</button>
-
-<div class="app">
-  <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
-    <div class="logo">
-      <div class="logo-text">FinFlow</div>
-      <div class="logo-sub">Учёт финансов</div>
-    </div>
-    <nav class="nav">
-      <div class="nav-item active" onclick="navigate('dashboard')">
-        <span class="icon">📊</span> Дашборд
-      </div>
-      <div class="nav-item" onclick="navigate('transactions')">
-        <span class="icon">↕️</span> Транзакции
-      </div>
-      <div class="nav-item" onclick="navigate('budget')">
-        <span class="icon">🎯</span> Бюджет
-      </div>
-      <div class="nav-item" onclick="navigate('goals')">
-        <span class="icon">🏆</span> Цели
-      </div>
-      <div class="nav-item" onclick="navigate('reports')">
-        <span class="icon">📈</span> Отчёты
-      </div>
-    </nav>
-    <div class="sidebar-footer">
-      <button class="btn-icon" onclick="exportData()">⬇️ Экспорт</button>
-      <label class="btn-icon" style="cursor:pointer">
-        ⬆️ Импорт
-        <input type="file" accept=".json" onchange="importData(event)" style="display:none">
-      </label>
-    </div>
-  </aside>
-
-  <!-- MAIN CONTENT -->
-  <main class="main">
-
-    <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <div class="page-header">
+  <div class="auth-shell" id="auth-shell">
+    <section class="auth-panel">
+      <div class="auth-brand">
         <div>
-          <div class="page-title">Дашборд</div>
-          <div class="page-subtitle" id="dash-period">Загрузка...</div>
-        </div>
-        <div class="month-nav">
-          <button onclick="changeMonth(-1)">←</button>
-          <div class="month-label" id="month-label"></div>
-          <button onclick="changeMonth(1)">→</button>
+          <p class="auth-kicker" data-i18n="auth_kicker">Norocel x Supabase</p>
+          <h1 class="auth-title" data-i18n="auth_title">Intrare în cabinetul tău financiar din Republica Moldova.</h1>
+          <p class="auth-copy" data-i18n="auth_copy">Autentificarea, profilul și datele aplicației sunt păstrate în Supabase. Norocel pornește implicit cu lei moldovenești și interfață în română.</p>
         </div>
       </div>
 
-      <div class="stats-grid">
-        <div class="stat-card green">
-          <div class="stat-label">Доходы</div>
-          <div class="stat-value green" id="dash-income">0 ₽</div>
-          <div class="stat-change" id="dash-income-count">0 транзакций</div>
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" type="button" data-auth-mode="signin" data-i18n="auth_tab_signin">Autentificare</button>
+          <button class="auth-tab" type="button" data-auth-mode="signup" data-i18n="auth_tab_signup">Înregistrare</button>
+          <button class="auth-tab" type="button" data-auth-mode="reset" data-i18n="auth_tab_reset">Resetare</button>
         </div>
-        <div class="stat-card red">
-          <div class="stat-label">Расходы</div>
-          <div class="stat-value red" id="dash-expense">0 ₽</div>
-          <div class="stat-change" id="dash-expense-count">0 транзакций</div>
-        </div>
-        <div class="stat-card blue">
-          <div class="stat-label">Баланс</div>
-          <div class="stat-value blue" id="dash-balance">0 ₽</div>
-          <div class="stat-change" id="dash-savings-rate">Норма сбережений: 0%</div>
-        </div>
-        <div class="stat-card yellow">
-          <div class="stat-label">Всего транзакций</div>
-          <div class="stat-value yellow" id="dash-total-tx">0</div>
-          <div class="stat-change" id="dash-avg">Среднее: 0 ₽</div>
-        </div>
+
+        <div class="setup-note" id="setup-note" data-i18n="auth_setup_note">Completează `assets/js/supabase-config.js` și rulează SQL-ul din `supabase/schema.sql`.</div>
+
+        <form id="auth-form">
+          <div class="form-group auth-only-signup hidden" id="auth-name-group">
+            <label class="form-label" for="auth-name" data-i18n="field_name">Prenume</label>
+            <input class="form-input" id="auth-name" type="text" data-i18n-placeholder="placeholder_name" placeholder="Ion">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="auth-email" data-i18n="field_email">Email</label>
+            <input class="form-input" id="auth-email" type="email" data-i18n-placeholder="placeholder_email" placeholder="you@example.com" required>
+          </div>
+
+          <div class="form-group auth-hide-reset" id="auth-password-group">
+            <label class="form-label" for="auth-password" data-i18n="field_password">Parolă</label>
+            <input class="form-input" id="auth-password" type="password" data-i18n-placeholder="placeholder_password" placeholder="Minimum 6 caractere" required>
+          </div>
+
+          <button class="btn btn-primary auth-submit" id="auth-submit" type="submit" data-i18n="submit_signin">Intră</button>
+        </form>
+
+        <p class="auth-helper" id="auth-helper" data-i18n="auth_helper_signin">Folosește emailul și parola din Supabase Auth.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="app-shell hidden" id="app-shell">
+    <button class="mob-toggle" id="sidebar-toggle" type="button" aria-label="Open menu">☰</button>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">
+        <div class="logo-text" data-i18n="brand_name">Norocel</div>
+        <div class="logo-sub" data-i18n="brand_subtitle">Finanțe personale pentru Moldova</div>
       </div>
 
-      <div class="grid-3">
-        <div class="card">
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-page="dashboard">
+          <span class="icon">📊</span>
+          <span data-i18n="nav_dashboard">Panou</span>
+        </button>
+        <button class="nav-item" type="button" data-page="transactions">
+          <span class="icon">↕️</span>
+          <span data-i18n="nav_transactions">Tranzacții</span>
+        </button>
+        <button class="nav-item" type="button" data-page="budget">
+          <span class="icon">🎯</span>
+          <span data-i18n="nav_budget">Buget</span>
+        </button>
+        <button class="nav-item" type="button" data-page="goals">
+          <span class="icon">🏆</span>
+          <span data-i18n="nav_goals">Obiective</span>
+        </button>
+        <button class="nav-item" type="button" data-page="reports">
+          <span class="icon">📈</span>
+          <span data-i18n="nav_reports">Rapoarte</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn-icon" id="export-button" type="button" data-i18n="export">Export</button>
+        <label class="btn-icon" for="import-file">
+          <span data-i18n="import">Import</span>
+          <input id="import-file" type="file" accept=".json" hidden>
+        </label>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-user">
+          <div class="topbar-avatar" id="user-avatar">N</div>
+          <div>
+            <div class="topbar-name" id="user-name">Norocel</div>
+            <div class="topbar-email" id="user-email">user@example.com</div>
+          </div>
+        </div>
+
+        <div class="topbar-controls">
+          <label class="pref-control">
+            <span data-i18n="topbar_language">Limbă</span>
+            <select class="form-select compact-select" id="language-select"></select>
+          </label>
+          <label class="pref-control">
+            <span data-i18n="topbar_currency">Monedă</span>
+            <select class="form-select compact-select" id="currency-select"></select>
+          </label>
+          <button class="btn btn-secondary btn-sm" id="logout-button" type="button" data-i18n="logout">Ieșire</button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="hero-kicker" data-i18n="hero_kicker">Centru financiar personal</p>
+          <h1 class="hero-title" data-i18n="hero_title">Controlează banii, bugetele și obiectivele într-un singur loc.</h1>
+        </div>
+        <div class="hero-actions">
+          <button class="btn btn-secondary" id="quick-expense" type="button" data-i18n="quick_expense">- Cheltuială</button>
+          <button class="btn btn-primary" id="quick-income" type="button" data-i18n="quick_income">+ Venit</button>
+        </div>
+      </section>
+
+      <section class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_dashboard">Panou</div>
+            <div class="page-subtitle" id="dash-period"></div>
+          </div>
+          <div class="month-nav">
+            <button id="prev-month" type="button">←</button>
+            <div class="month-label" id="month-label"></div>
+            <button id="next-month" type="button">→</button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card green">
+            <div class="stat-label" data-i18n="stat_income">Venituri</div>
+            <div class="stat-value green" id="dash-income">0</div>
+            <div class="stat-change" id="dash-income-count">0</div>
+          </article>
+          <article class="stat-card red">
+            <div class="stat-label" data-i18n="stat_expense">Cheltuieli</div>
+            <div class="stat-value red" id="dash-expense">0</div>
+            <div class="stat-change" id="dash-expense-count">0</div>
+          </article>
+          <article class="stat-card blue">
+            <div class="stat-label" data-i18n="stat_balance">Sold</div>
+            <div class="stat-value blue" id="dash-balance">0</div>
+            <div class="stat-change" id="dash-savings-rate"></div>
+          </article>
+          <article class="stat-card yellow">
+            <div class="stat-label" data-i18n="stat_total_transactions">Total tranzacții</div>
+            <div class="stat-value yellow" id="dash-total-tx">0</div>
+            <div class="stat-change" id="dash-avg"></div>
+          </article>
+        </div>
+
+        <div class="grid-3">
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="chart_money_flow">Fluxul banilor</div>
+              <div class="card-meta" id="dash-chart-period"></div>
+            </div>
+            <div class="chart-container">
+              <canvas id="dashChart"></canvas>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="chart_expense_by_category">Cheltuieli pe categorii</div>
+            </div>
+            <div class="chart-container">
+              <canvas id="catChart"></canvas>
+            </div>
+          </article>
+        </div>
+
+        <article class="card">
           <div class="card-header">
-            <div class="card-title">Движение денег</div>
-            <div style="font-size:13px;color:var(--text-muted)" id="dash-chart-period"></div>
+            <div class="card-title" data-i18n="card_recent_transactions">Tranzacții recente</div>
+            <button class="btn btn-secondary btn-sm" type="button" data-page="transactions" data-i18n="btn_all_arrow">Toate →</button>
           </div>
-          <div class="chart-container">
-            <canvas id="dashChart"></canvas>
+          <div id="recent-transactions"></div>
+        </article>
+      </section>
+
+      <section class="page" id="page-transactions">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_transactions">Tranzacții</div>
+            <div class="page-subtitle" id="tx-count-label"></div>
           </div>
+          <button class="btn btn-primary" id="add-transaction-button" type="button" data-i18n="btn_add">+ Adaugă</button>
         </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">Расходы по категориям</div></div>
-          <div class="chart-container">
-            <canvas id="catChart"></canvas>
+
+        <div class="filter-bar" id="transaction-filters">
+          <button class="filter-chip active" type="button" data-filter="all" data-i18n="btn_all">Toate</button>
+          <button class="filter-chip" type="button" data-filter="income" data-i18n="btn_income">Venituri</button>
+          <button class="filter-chip" type="button" data-filter="expense" data-i18n="btn_expense">Cheltuieli</button>
+        </div>
+
+        <article class="card">
+          <div id="transactions-list"></div>
+        </article>
+      </section>
+
+      <section class="page" id="page-budget">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_budget">Buget</div>
+            <div class="page-subtitle" data-i18n="subtitle_budget">Planificare pe categorii</div>
           </div>
+          <button class="btn btn-primary" id="add-budget-button" type="button" data-i18n="btn_add_category">+ Categorie</button>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Последние транзакции</div>
-          <button class="btn btn-secondary" onclick="navigate('transactions')" style="font-size:13px;padding:8px 14px">Все →</button>
+        <div class="grid-2">
+          <article class="stat-card blue">
+            <div class="stat-label" data-i18n="stat_planned">Planificat</div>
+            <div class="stat-value blue" id="budget-planned">0</div>
+          </article>
+          <article class="stat-card red">
+            <div class="stat-label" data-i18n="stat_spent_month">Cheltuit luna aceasta</div>
+            <div class="stat-value red" id="budget-spent">0</div>
+          </article>
         </div>
-        <div id="recent-transactions"></div>
-      </div>
-    </div>
 
-    <!-- TRANSACTIONS -->
-    <div class="page" id="page-transactions">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Транзакции</div>
-          <div class="page-subtitle" id="tx-count-label">Все транзакции</div>
+        <article class="card">
+          <div class="card-header">
+            <div class="card-title" data-i18n="card_budget_by_category">Buget pe categorii</div>
+          </div>
+          <div id="budget-list"></div>
+        </article>
+      </section>
+
+      <section class="page" id="page-goals">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_goals">Obiective financiare</div>
+            <div class="page-subtitle" data-i18n="subtitle_goals">Pune bani deoparte pentru planurile tale</div>
+          </div>
+          <button class="btn btn-primary" id="add-goal-button" type="button" data-i18n="btn_add_goal">+ Obiectiv</button>
         </div>
-        <button class="btn btn-primary" onclick="openAddModal()">+ Добавить</button>
-      </div>
 
-      <div class="filter-bar">
-        <div class="filter-chip active" onclick="setFilter('all', this)">Все</div>
-        <div class="filter-chip" onclick="setFilter('income', this)">Доходы</div>
-        <div class="filter-chip" onclick="setFilter('expense', this)">Расходы</div>
-      </div>
+        <div class="goals-grid" id="goals-grid"></div>
+      </section>
 
-      <div class="card">
-        <div id="transactions-list"></div>
-      </div>
-    </div>
-
-    <!-- BUDGET -->
-    <div class="page" id="page-budget">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Бюджет</div>
-          <div class="page-subtitle">Планирование по категориям</div>
-        </div>
-        <button class="btn btn-primary" onclick="openBudgetModal()">+ Категория</button>
-      </div>
-
-      <div class="grid-2" style="margin-bottom:20px">
-        <div class="stat-card blue">
-          <div class="stat-label">Запланировано</div>
-          <div class="stat-value blue" id="budget-planned">0 ₽</div>
-        </div>
-        <div class="stat-card red">
-          <div class="stat-label">Потрачено в этом месяце</div>
-          <div class="stat-value red" id="budget-spent">0 ₽</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><div class="card-title">Бюджет по категориям</div></div>
-        <div id="budget-list"></div>
-      </div>
-    </div>
-
-    <!-- GOALS -->
-    <div class="page" id="page-goals">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Финансовые цели</div>
-          <div class="page-subtitle">Откладывай на мечту</div>
-        </div>
-        <button class="btn btn-primary" onclick="openGoalModal()">+ Цель</button>
-      </div>
-      <div class="goals-grid" id="goals-grid"></div>
-    </div>
-
-    <!-- REPORTS -->
-    <div class="page" id="page-reports">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Отчёты</div>
-          <div class="page-subtitle">Анализ финансов за период</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">Доходы vs Расходы по месяцам</div></div>
-          <div class="chart-container" style="height:300px">
-            <canvas id="monthlyChart"></canvas>
+      <section class="page" id="page-reports">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_reports">Rapoarte</div>
+            <div class="page-subtitle" data-i18n="subtitle_reports">Analiză financiară pe perioadă</div>
           </div>
         </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">Структура расходов</div></div>
-          <div class="chart-container" style="height:300px">
-            <canvas id="expensePieChart"></canvas>
+
+        <div class="grid-2">
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="card_income_vs_expense">Venituri vs cheltuieli pe luni</div>
+            </div>
+            <div class="chart-container chart-container-tall">
+              <canvas id="monthlyChart"></canvas>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="card_expense_structure">Structura cheltuielilor</div>
+            </div>
+            <div class="chart-container chart-container-tall">
+              <canvas id="expensePieChart"></canvas>
+            </div>
+          </article>
+        </div>
+
+        <article class="card">
+          <div class="card-header">
+            <div class="card-title" data-i18n="card_balance_trend">Evoluția soldului</div>
+          </div>
+          <div class="chart-container chart-container-wide">
+            <canvas id="balanceChart"></canvas>
+          </div>
+        </article>
+
+        <article class="card mt-20">
+          <div class="card-header">
+            <div class="card-title" data-i18n="card_top_expense_categories">Top categorii de cheltuieli</div>
+          </div>
+          <div id="top-categories"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">Tranzacție nouă</div>
+        <button class="modal-close" type="button" data-close-modal="add-modal">✕</button>
+      </div>
+
+      <div class="type-toggle">
+        <button class="type-btn active-income" id="btn-income" type="button" data-type="income" data-i18n="transaction_income">Venit</button>
+        <button class="type-btn" id="btn-expense" type="button" data-type="expense" data-i18n="transaction_expense">Cheltuială</button>
+      </div>
+
+      <form id="transaction-form">
+        <input type="hidden" id="tx-type" value="income">
+        <input type="hidden" id="tx-edit-id" value="">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="tx-amount" data-i18n="field_amount">Sumă</label>
+            <input type="number" class="form-input" id="tx-amount" placeholder="0" min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="tx-date" data-i18n="field_date">Dată</label>
+            <input type="date" class="form-input" id="tx-date">
           </div>
         </div>
-      </div>
 
-      <div class="card">
-        <div class="card-header"><div class="card-title">Тренд баланса</div></div>
-        <div class="chart-container" style="height:220px">
-          <canvas id="balanceChart"></canvas>
+        <div class="form-group">
+          <label class="form-label" for="tx-desc" data-i18n="field_description">Descriere</label>
+          <input type="text" class="form-input" id="tx-desc" data-i18n-placeholder="placeholder_transaction_desc" placeholder="De exemplu: salariu">
         </div>
-      </div>
 
-      <div class="card" style="margin-top:20px">
-        <div class="card-header"><div class="card-title">Топ категорий расходов</div></div>
-        <div id="top-categories"></div>
-      </div>
-    </div>
+        <div class="form-group">
+          <label class="form-label" for="tx-category" data-i18n="field_category">Categorie</label>
+          <select class="form-select" id="tx-category"></select>
+        </div>
 
-  </main>
-</div>
-
-<!-- ADD TRANSACTION MODAL -->
-<div class="modal-overlay" id="add-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-title">Новая транзакция</div>
-      <button class="modal-close" onclick="closeModal('add-modal')">✕</button>
-    </div>
-
-    <div class="type-toggle">
-      <button class="type-btn active-income" onclick="setType('income', this)" id="btn-income">📈 Доход</button>
-      <button class="type-btn" onclick="setType('expense', this)" id="btn-expense">📉 Расход</button>
-    </div>
-
-    <input type="hidden" id="tx-type" value="income">
-    <input type="hidden" id="tx-edit-id" value="">
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Сумма</label>
-        <input type="number" class="form-input" id="tx-amount" placeholder="0" min="0" step="0.01">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Дата</label>
-        <input type="date" class="form-input" id="tx-date">
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Описание</label>
-      <input type="text" class="form-input" id="tx-desc" placeholder="Например: Зарплата">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Категория</label>
-      <select class="form-select" id="tx-category"></select>
-    </div>
-
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btn-secondary" onclick="closeModal('add-modal')" style="flex:1">Отмена</button>
-      <button class="btn btn-primary" onclick="saveTransaction()" style="flex:2">Сохранить</button>
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="add-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
     </div>
   </div>
-</div>
 
-<!-- BUDGET MODAL -->
-<div class="modal-overlay" id="budget-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Установить бюджет</div>
-      <button class="modal-close" onclick="closeModal('budget-modal')">✕</button>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Категория</label>
-      <select class="form-select" id="budget-cat"></select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Лимит в месяц (₽)</label>
-      <input type="number" class="form-input" id="budget-limit" placeholder="0" min="0">
-    </div>
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btn-secondary" onclick="closeModal('budget-modal')" style="flex:1">Отмена</button>
-      <button class="btn btn-primary" onclick="saveBudget()" style="flex:2">Сохранить</button>
+  <div class="modal-overlay" id="budget-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="modal_set_budget">Setează bugetul</div>
+        <button class="modal-close" type="button" data-close-modal="budget-modal">✕</button>
+      </div>
+
+      <form id="budget-form">
+        <div class="form-group">
+          <label class="form-label" for="budget-cat" data-i18n="field_category">Categorie</label>
+          <select class="form-select" id="budget-cat"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="budget-limit" data-i18n="field_monthly_limit">Limită lunară</label>
+          <input type="number" class="form-input" id="budget-limit" placeholder="0" min="0">
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="budget-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
     </div>
   </div>
-</div>
 
-<!-- GOAL MODAL -->
-<div class="modal-overlay" id="goal-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="goal-modal-title">Новая цель</div>
-      <button class="modal-close" onclick="closeModal('goal-modal')">✕</button>
-    </div>
-    <input type="hidden" id="goal-edit-id">
-    <div class="form-group">
-      <label class="form-label">Название</label>
-      <input type="text" class="form-input" id="goal-name" placeholder="Например: Отпуск в Испании">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Цель (₽)</label>
-        <input type="number" class="form-input" id="goal-target" placeholder="100000" min="0">
+  <div class="modal-overlay" id="goal-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="goal-modal-title">Obiectiv nou</div>
+        <button class="modal-close" type="button" data-close-modal="goal-modal">✕</button>
       </div>
-      <div class="form-group">
-        <label class="form-label">Накоплено (₽)</label>
-        <input type="number" class="form-input" id="goal-saved" placeholder="0" min="0">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Иконка</label>
-        <input type="text" class="form-input" id="goal-icon" placeholder="🏖️" maxlength="4">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Дата дедлайна</label>
-        <input type="date" class="form-input" id="goal-deadline">
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:8px">
-      <button class="btn btn-secondary" onclick="closeModal('goal-modal')" style="flex:1">Отмена</button>
-      <button class="btn btn-primary" onclick="saveGoal()" style="flex:2">Сохранить</button>
-    </div>
-  </div>
-</div>
 
-<!-- TOASTS -->
-<div class="toast-container" id="toast-container"></div>
+      <form id="goal-form">
+        <input type="hidden" id="goal-edit-id">
 
-<script>
-// ============================================================
-// DATA & STATE
-// ============================================================
-let state = {
-  transactions: [],
-  budgets: {},
-  goals: [],
-  currentMonth: new Date().getMonth(),
-  currentYear: new Date().getFullYear(),
-  filter: 'all'
-};
-
-const INCOME_CATS = ['Зарплата', 'Фриланс', 'Инвестиции', 'Подарки', 'Другой доход'];
-const EXPENSE_CATS = ['Еда', 'Транспорт', 'Жильё', 'Развлечения', 'Одежда', 'Здоровье', 'Образование', 'Связь', 'Другое'];
-const CAT_COLORS = {
-  'Зарплата': '#6ee7b7', 'Фриланс': '#86efac', 'Инвестиции': '#34d399', 'Подарки': '#a7f3d0', 'Другой доход': '#6ee7b7',
-  'Еда': '#fb7185', 'Транспорт': '#f97316', 'Жильё': '#818cf8', 'Развлечения': '#fbbf24',
-  'Одежда': '#e879f9', 'Здоровье': '#38bdf8', 'Образование': '#a78bfa', 'Связь': '#94a3b8', 'Другое': '#64748b'
-};
-const CAT_ICONS = {
-  'Зарплата':'💼','Фриланс':'💻','Инвестиции':'📈','Подарки':'🎁','Другой доход':'💰',
-  'Еда':'🍕','Транспорт':'🚗','Жильё':'🏠','Развлечения':'🎬','Одежда':'👗',
-  'Здоровье':'💊','Образование':'📚','Связь':'📱','Другое':'📦'
-};
-
-const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-
-// ============================================================
-// STORAGE
-// ============================================================
-function load() {
-  try {
-    const d = localStorage.getItem('finflow_data');
-    if (d) {
-      const parsed = JSON.parse(d);
-      state.transactions = parsed.transactions || [];
-      state.budgets = parsed.budgets || {};
-      state.goals = parsed.goals || [];
-    }
-  } catch(e) { console.error(e); }
-}
-
-function save() {
-  localStorage.setItem('finflow_data', JSON.stringify({
-    transactions: state.transactions,
-    budgets: state.budgets,
-    goals: state.goals
-  }));
-}
-
-// ============================================================
-// UTILS
-// ============================================================
-function fmt(n) {
-  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(n);
-}
-
-function fmtDate(s) {
-  const d = new Date(s);
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function id() { return Date.now() + Math.random().toString(36).slice(2); }
-
-function getMonthTx(month, year) {
-  return state.transactions.filter(t => {
-    const d = new Date(t.date);
-    return d.getMonth() === month && d.getFullYear() === year;
-  });
-}
-
-function sum(txs, type) {
-  return txs.filter(t => t.type === type).reduce((a, t) => a + t.amount, 0);
-}
-
-// ============================================================
-// TOAST
-// ============================================================
-function toast(msg, type = 'success') {
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> ${msg}`;
-  document.getElementById('toast-container').appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
-
-// ============================================================
-// NAVIGATION
-// ============================================================
-let charts = {};
-
-function navigate(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(n => {
-    if (n.textContent.trim().toLowerCase().includes(page === 'dashboard' ? 'дашборд' : page === 'transactions' ? 'транзакц' : page === 'budget' ? 'бюджет' : page === 'goals' ? 'цел' : 'отчёт')) {
-      n.classList.add('active');
-    }
-  });
-  renderPage(page);
-  if (window.innerWidth < 900) document.getElementById('sidebar').classList.remove('open');
-}
-
-function renderPage(page) {
-  if (page === 'dashboard') renderDashboard();
-  else if (page === 'transactions') renderTransactions();
-  else if (page === 'budget') renderBudget();
-  else if (page === 'goals') renderGoals();
-  else if (page === 'reports') renderReports();
-}
-
-// ============================================================
-// MONTH NAV
-// ============================================================
-function changeMonth(dir) {
-  state.currentMonth += dir;
-  if (state.currentMonth > 11) { state.currentMonth = 0; state.currentYear++; }
-  if (state.currentMonth < 0) { state.currentMonth = 11; state.currentYear--; }
-  updateMonthLabel();
-  renderDashboard();
-}
-
-function updateMonthLabel() {
-  document.getElementById('month-label').textContent = MONTHS_RU[state.currentMonth] + ' ' + state.currentYear;
-  document.getElementById('dash-period').textContent = MONTHS_RU[state.currentMonth] + ' ' + state.currentYear;
-}
-
-// ============================================================
-// DASHBOARD
-// ============================================================
-function renderDashboard() {
-  updateMonthLabel();
-  const txs = getMonthTx(state.currentMonth, state.currentYear);
-  const income = sum(txs, 'income');
-  const expense = sum(txs, 'expense');
-  const balance = income - expense;
-
-  document.getElementById('dash-income').textContent = fmt(income);
-  document.getElementById('dash-expense').textContent = fmt(expense);
-  document.getElementById('dash-balance').textContent = fmt(balance);
-  document.getElementById('dash-balance').className = 'stat-value ' + (balance >= 0 ? 'blue' : 'red');
-  document.getElementById('dash-income-count').textContent = txs.filter(t => t.type === 'income').length + ' транзакций';
-  document.getElementById('dash-expense-count').textContent = txs.filter(t => t.type === 'expense').length + ' транзакций';
-  document.getElementById('dash-total-tx').textContent = txs.length;
-  const savRate = income > 0 ? Math.round((balance / income) * 100) : 0;
-  document.getElementById('dash-savings-rate').textContent = 'Норма сбережений: ' + savRate + '%';
-  const avg = txs.length ? Math.round(txs.reduce((a, t) => a + t.amount, 0) / txs.length) : 0;
-  document.getElementById('dash-avg').textContent = 'Среднее: ' + fmt(avg);
-  document.getElementById('dash-chart-period').textContent = MONTHS_RU[state.currentMonth];
-
-  renderDashChart(txs);
-  renderCatChart(txs);
-  renderRecentTx(txs);
-}
-
-function renderDashChart(txs) {
-  // Daily grouped for current month
-  const daysInMonth = new Date(state.currentYear, state.currentMonth + 1, 0).getDate();
-  const days = Array.from({length: daysInMonth}, (_, i) => i + 1);
-  const incomes = new Array(daysInMonth).fill(0);
-  const expenses = new Array(daysInMonth).fill(0);
-
-  txs.forEach(t => {
-    const day = new Date(t.date).getDate() - 1;
-    if (t.type === 'income') incomes[day] += t.amount;
-    else expenses[day] += t.amount;
-  });
-
-  if (charts.dash) charts.dash.destroy();
-  const ctx = document.getElementById('dashChart').getContext('2d');
-  charts.dash = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: days,
-      datasets: [
-        { label: 'Доходы', data: incomes, backgroundColor: 'rgba(110,231,183,0.7)', borderRadius: 4 },
-        { label: 'Расходы', data: expenses, backgroundColor: 'rgba(251,113,133,0.7)', borderRadius: 4 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#7a8099', font: { size: 12 } } } },
-      scales: {
-        x: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099', font: { size: 11 } } },
-        y: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099', font: { size: 11 }, callback: v => fmt(v) } }
-      }
-    }
-  });
-}
-
-function renderCatChart(txs) {
-  const expTxs = txs.filter(t => t.type === 'expense');
-  const bycat = {};
-  expTxs.forEach(t => { bycat[t.category] = (bycat[t.category] || 0) + t.amount; });
-  const cats = Object.keys(bycat);
-
-  if (charts.cat) charts.cat.destroy();
-  const ctx = document.getElementById('catChart').getContext('2d');
-
-  if (!cats.length) {
-    ctx.clearRect(0, 0, 1000, 1000);
-    return;
-  }
-
-  charts.cat = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: cats,
-      datasets: [{
-        data: cats.map(c => bycat[c]),
-        backgroundColor: cats.map(c => CAT_COLORS[c] || '#818cf8'),
-        borderWidth: 2,
-        borderColor: '#161921'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#7a8099', font: { size: 11 }, boxWidth: 12, padding: 10 } }
-      },
-      cutout: '65%'
-    }
-  });
-}
-
-function renderRecentTx(txs) {
-  const container = document.getElementById('recent-transactions');
-  const recent = [...txs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8);
-  if (!recent.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">💸</div><h3>Нет транзакций</h3><p>Добавьте первую транзакцию</p></div>`;
-    return;
-  }
-  container.innerHTML = recent.map(t => txHTML(t)).join('');
-}
-
-// ============================================================
-// TRANSACTIONS
-// ============================================================
-function renderTransactions() {
-  const all = state.transactions.filter(t => state.filter === 'all' || t.type === state.filter);
-  const sorted = [...all].sort((a, b) => new Date(b.date) - new Date(a.date));
-  document.getElementById('tx-count-label').textContent = sorted.length + ' транзакций';
-  const container = document.getElementById('transactions-list');
-
-  if (!sorted.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">💸</div><h3>Нет транзакций</h3><p>Нажмите "+ Добавить" чтобы начать</p></div>`;
-    return;
-  }
-  container.innerHTML = sorted.map(t => txHTML(t, true)).join('');
-}
-
-function txHTML(t, showActions = false) {
-  const color = CAT_COLORS[t.category] || '#818cf8';
-  const icon = CAT_ICONS[t.category] || '💳';
-  const sign = t.type === 'income' ? '+' : '-';
-  const cls = t.type;
-  return `<div class="transaction-item">
-    <div class="tx-icon" style="background:${color}22;color:${color}">${icon}</div>
-    <div class="tx-info">
-      <div class="tx-name">${t.desc || t.category}</div>
-      <div class="tx-date">${fmtDate(t.date)}</div>
-      <span class="tx-category">${t.category}</span>
-    </div>
-    <div class="tx-amount ${cls}">${sign}${fmt(t.amount)}</div>
-    ${showActions ? `<div class="tx-actions">
-      <button class="tx-btn" onclick="editTx('${t.id}')">✏️</button>
-      <button class="tx-btn del" onclick="deleteTx('${t.id}')">🗑️</button>
-    </div>` : ''}
-  </div>`;
-}
-
-function setFilter(f, el) {
-  state.filter = f;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderTransactions();
-}
-
-// ============================================================
-// ADD / EDIT TRANSACTION
-// ============================================================
-function openAddModal(type = 'income') {
-  document.getElementById('tx-edit-id').value = '';
-  document.getElementById('modal-title').textContent = 'Новая транзакция';
-  document.getElementById('tx-amount').value = '';
-  document.getElementById('tx-desc').value = '';
-  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
-  setType(type, document.getElementById('btn-' + type));
-  document.getElementById('add-modal').classList.add('open');
-}
-
-function setType(type, btn) {
-  document.getElementById('tx-type').value = type;
-  document.getElementById('btn-income').className = 'type-btn' + (type === 'income' ? ' active-income' : '');
-  document.getElementById('btn-expense').className = 'type-btn' + (type === 'expense' ? ' active-expense' : '');
-
-  const cats = type === 'income' ? INCOME_CATS : EXPENSE_CATS;
-  const sel = document.getElementById('tx-category');
-  sel.innerHTML = cats.map(c => `<option value="${c}">${CAT_ICONS[c] || ''} ${c}</option>`).join('');
-}
-
-function saveTransaction() {
-  const amount = parseFloat(document.getElementById('tx-amount').value);
-  const desc = document.getElementById('tx-desc').value.trim();
-  const date = document.getElementById('tx-date').value;
-  const category = document.getElementById('tx-category').value;
-  const type = document.getElementById('tx-type').value;
-  const editId = document.getElementById('tx-edit-id').value;
-
-  if (!amount || amount <= 0) { toast('Введите корректную сумму', 'error'); return; }
-  if (!date) { toast('Выберите дату', 'error'); return; }
-
-  if (editId) {
-    const idx = state.transactions.findIndex(t => t.id === editId);
-    if (idx !== -1) state.transactions[idx] = { ...state.transactions[idx], amount, desc, date, category, type };
-    toast('Транзакция обновлена');
-  } else {
-    state.transactions.push({ id: id(), amount, desc, date, category, type });
-    toast('Транзакция добавлена');
-  }
-
-  save();
-  closeModal('add-modal');
-  renderPage(document.querySelector('.page.active').id.replace('page-', ''));
-}
-
-function editTx(txId) {
-  const t = state.transactions.find(x => x.id === txId);
-  if (!t) return;
-  document.getElementById('tx-edit-id').value = txId;
-  document.getElementById('modal-title').textContent = 'Редактировать';
-  setType(t.type, document.getElementById('btn-' + t.type));
-  document.getElementById('tx-amount').value = t.amount;
-  document.getElementById('tx-desc').value = t.desc || '';
-  document.getElementById('tx-date').value = t.date;
-  setTimeout(() => { document.getElementById('tx-category').value = t.category; }, 10);
-  document.getElementById('add-modal').classList.add('open');
-}
-
-function deleteTx(txId) {
-  if (!confirm('Удалить транзакцию?')) return;
-  state.transactions = state.transactions.filter(t => t.id !== txId);
-  save();
-  toast('Удалено', 'info');
-  renderPage(document.querySelector('.page.active').id.replace('page-', ''));
-}
-
-// ============================================================
-// BUDGET
-// ============================================================
-function openBudgetModal() {
-  const sel = document.getElementById('budget-cat');
-  sel.innerHTML = EXPENSE_CATS.map(c => `<option value="${c}">${CAT_ICONS[c]||''} ${c}</option>`).join('');
-  document.getElementById('budget-limit').value = '';
-  document.getElementById('budget-modal').classList.add('open');
-}
-
-function saveBudget() {
-  const cat = document.getElementById('budget-cat').value;
-  const limit = parseFloat(document.getElementById('budget-limit').value);
-  if (!limit || limit <= 0) { toast('Введите лимит', 'error'); return; }
-  state.budgets[cat] = limit;
-  save();
-  toast('Бюджет сохранён');
-  closeModal('budget-modal');
-  renderBudget();
-}
-
-function renderBudget() {
-  const txs = getMonthTx(state.currentMonth, state.currentYear);
-  const spentByCat = {};
-  txs.filter(t => t.type === 'expense').forEach(t => {
-    spentByCat[t.category] = (spentByCat[t.category] || 0) + t.amount;
-  });
-
-  const totalPlanned = Object.values(state.budgets).reduce((a, b) => a + b, 0);
-  const totalSpent = Object.keys(state.budgets).reduce((a, c) => a + (spentByCat[c] || 0), 0);
-
-  document.getElementById('budget-planned').textContent = fmt(totalPlanned);
-  document.getElementById('budget-spent').textContent = fmt(totalSpent);
-
-  const container = document.getElementById('budget-list');
-  const cats = Object.keys(state.budgets);
-
-  if (!cats.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><h3>Нет бюджетов</h3><p>Установите лимиты по категориям</p></div>`;
-    return;
-  }
-
-  container.innerHTML = cats.map(cat => {
-    const limit = state.budgets[cat];
-    const spent = spentByCat[cat] || 0;
-    const pct = Math.min(100, Math.round((spent / limit) * 100));
-    const color = pct >= 100 ? '#fb7185' : pct >= 80 ? '#fbbf24' : '#6ee7b7';
-    return `<div class="budget-item">
-      <div class="budget-item-header">
-        <div class="budget-item-name">${CAT_ICONS[cat]||'📦'} ${cat}</div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div class="budget-item-amounts"><span>${fmt(spent)}</span> / ${fmt(limit)}</div>
-          <button class="tx-btn del" onclick="deleteBudget('${cat}')" title="Удалить">🗑️</button>
+        <div class="form-group">
+          <label class="form-label" for="goal-name" data-i18n="field_goal_name">Denumire</label>
+          <input type="text" class="form-input" id="goal-name" data-i18n-placeholder="placeholder_goal_name" placeholder="De exemplu: vacanță în Grecia">
         </div>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">${pct}% использовано${pct >= 100 ? ' — <span style="color:var(--expense)">Превышен!</span>' : ''}</div>
-    </div>`;
-  }).join('');
-}
 
-function deleteBudget(cat) {
-  delete state.budgets[cat];
-  save();
-  renderBudget();
-  toast('Бюджет удалён', 'info');
-}
-
-// ============================================================
-// GOALS
-// ============================================================
-function openGoalModal(goalId = null) {
-  document.getElementById('goal-edit-id').value = goalId || '';
-  document.getElementById('goal-modal-title').textContent = goalId ? 'Редактировать цель' : 'Новая цель';
-
-  if (goalId) {
-    const g = state.goals.find(x => x.id === goalId);
-    if (g) {
-      document.getElementById('goal-name').value = g.name;
-      document.getElementById('goal-target').value = g.target;
-      document.getElementById('goal-saved').value = g.saved;
-      document.getElementById('goal-icon').value = g.icon || '🎯';
-      document.getElementById('goal-deadline').value = g.deadline || '';
-    }
-  } else {
-    document.getElementById('goal-name').value = '';
-    document.getElementById('goal-target').value = '';
-    document.getElementById('goal-saved').value = '';
-    document.getElementById('goal-icon').value = '🎯';
-    document.getElementById('goal-deadline').value = '';
-  }
-  document.getElementById('goal-modal').classList.add('open');
-}
-
-function saveGoal() {
-  const name = document.getElementById('goal-name').value.trim();
-  const target = parseFloat(document.getElementById('goal-target').value);
-  const saved = parseFloat(document.getElementById('goal-saved').value) || 0;
-  const icon = document.getElementById('goal-icon').value || '🎯';
-  const deadline = document.getElementById('goal-deadline').value;
-  const editId = document.getElementById('goal-edit-id').value;
-
-  if (!name) { toast('Введите название', 'error'); return; }
-  if (!target || target <= 0) { toast('Введите целевую сумму', 'error'); return; }
-
-  if (editId) {
-    const idx = state.goals.findIndex(g => g.id === editId);
-    if (idx !== -1) state.goals[idx] = { ...state.goals[idx], name, target, saved, icon, deadline };
-    toast('Цель обновлена');
-  } else {
-    state.goals.push({ id: id(), name, target, saved, icon, deadline });
-    toast('Цель добавлена');
-  }
-
-  save();
-  closeModal('goal-modal');
-  renderGoals();
-}
-
-function renderGoals() {
-  const container = document.getElementById('goals-grid');
-  if (!state.goals.length) {
-    container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🏆</div><h3>Нет целей</h3><p>Добавьте финансовую цель</p></div>`;
-    return;
-  }
-
-  container.innerHTML = state.goals.map(g => {
-    const pct = Math.min(100, Math.round((g.saved / g.target) * 100));
-    const remaining = Math.max(0, g.target - g.saved);
-    const color = pct >= 100 ? '#6ee7b7' : pct >= 60 ? '#fbbf24' : '#818cf8';
-
-    let deadlineStr = '';
-    if (g.deadline) {
-      const days = Math.ceil((new Date(g.deadline) - new Date()) / 86400000);
-      deadlineStr = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📅 ${days > 0 ? days + ' дней осталось' : 'Срок истёк'}</div>`;
-    }
-
-    return `<div class="goal-card">
-      <div class="goal-header">
-        <div>
-          <div style="font-size:32px">${g.icon || '🎯'}</div>
-          <div class="goal-name">${g.name}</div>
-          <div class="goal-amounts"><strong>${fmt(g.saved)}</strong> из ${fmt(g.target)}</div>
-        </div>
-        <div>
-          <div class="goal-percent">${pct}%</div>
-          <div style="display:flex;gap:4px;margin-top:8px">
-            <button class="tx-btn" onclick="openGoalModal('${g.id}')">✏️</button>
-            <button class="tx-btn del" onclick="deleteGoal('${g.id}')">🗑️</button>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="goal-target" data-i18n="field_goal_target">Obiectiv</label>
+            <input type="number" class="form-input" id="goal-target" data-i18n-placeholder="placeholder_goal_target" placeholder="100000" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="goal-saved" data-i18n="field_goal_saved">Economisit</label>
+            <input type="number" class="form-input" id="goal-saved" data-i18n-placeholder="placeholder_goal_saved" placeholder="0" min="0">
           </div>
         </div>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">Осталось накопить: <strong style="color:var(--text)">${fmt(remaining)}</strong></div>
-      ${deadlineStr}
-    </div>`;
-  }).join('');
-}
 
-function deleteGoal(goalId) {
-  if (!confirm('Удалить цель?')) return;
-  state.goals = state.goals.filter(g => g.id !== goalId);
-  save();
-  renderGoals();
-  toast('Цель удалена', 'info');
-}
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="goal-icon" data-i18n="field_goal_icon">Icon</label>
+            <input type="text" class="form-input" id="goal-icon" placeholder="🎯" maxlength="4">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="goal-deadline" data-i18n="field_goal_deadline">Termen limită</label>
+            <input type="date" class="form-input" id="goal-deadline">
+          </div>
+        </div>
 
-// ============================================================
-// REPORTS
-// ============================================================
-function renderReports() {
-  renderMonthlyChart();
-  renderExpensePie();
-  renderBalanceChart();
-  renderTopCats();
-}
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="goal-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-function renderMonthlyChart() {
-  const months = [];
-  const incomes = [];
-  const expenses = [];
-
-  for (let i = 5; i >= 0; i--) {
-    let m = state.currentMonth - i;
-    let y = state.currentYear;
-    while (m < 0) { m += 12; y--; }
-    const txs = getMonthTx(m, y);
-    months.push(MONTHS_RU[m].slice(0, 3) + ' ' + y);
-    incomes.push(sum(txs, 'income'));
-    expenses.push(sum(txs, 'expense'));
-  }
-
-  if (charts.monthly) charts.monthly.destroy();
-  const ctx = document.getElementById('monthlyChart').getContext('2d');
-  charts.monthly = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: months,
-      datasets: [
-        { label: 'Доходы', data: incomes, backgroundColor: 'rgba(110,231,183,0.7)', borderRadius: 6 },
-        { label: 'Расходы', data: expenses, backgroundColor: 'rgba(251,113,133,0.7)', borderRadius: 6 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#7a8099' } } },
-      scales: {
-        x: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099' } },
-        y: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099', callback: v => fmt(v) } }
-      }
-    }
-  });
-}
-
-function renderExpensePie() {
-  const allExpenses = state.transactions.filter(t => t.type === 'expense');
-  const bycat = {};
-  allExpenses.forEach(t => { bycat[t.category] = (bycat[t.category] || 0) + t.amount; });
-  const cats = Object.keys(bycat).sort((a, b) => bycat[b] - bycat[a]);
-
-  if (charts.expPie) charts.expPie.destroy();
-  const ctx = document.getElementById('expensePieChart').getContext('2d');
-  if (!cats.length) return;
-
-  charts.expPie = new Chart(ctx, {
-    type: 'pie',
-    data: {
-      labels: cats,
-      datasets: [{
-        data: cats.map(c => bycat[c]),
-        backgroundColor: cats.map(c => CAT_COLORS[c] || '#818cf8'),
-        borderWidth: 2, borderColor: '#161921'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { color: '#7a8099', font: { size: 11 }, boxWidth: 12 } } }
-    }
-  });
-}
-
-function renderBalanceChart() {
-  const sorted = [...state.transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-  let balance = 0;
-  const labels = [];
-  const data = [];
-
-  sorted.forEach(t => {
-    balance += t.type === 'income' ? t.amount : -t.amount;
-    labels.push(fmtDate(t.date));
-    data.push(balance);
-  });
-
-  if (!labels.length) return;
-
-  if (charts.balance) charts.balance.destroy();
-  const ctx = document.getElementById('balanceChart').getContext('2d');
-  charts.balance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Баланс', data,
-        borderColor: '#818cf8',
-        backgroundColor: 'rgba(129,140,248,0.1)',
-        fill: true, tension: 0.4,
-        pointRadius: 3, pointBackgroundColor: '#818cf8'
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099', maxTicksLimit: 10 } },
-        y: { grid: { color: '#2a2f3d' }, ticks: { color: '#7a8099', callback: v => fmt(v) } }
-      }
-    }
-  });
-}
-
-function renderTopCats() {
-  const bycat = {};
-  state.transactions.filter(t => t.type === 'expense').forEach(t => {
-    bycat[t.category] = (bycat[t.category] || 0) + t.amount;
-  });
-  const total = Object.values(bycat).reduce((a, b) => a + b, 0);
-  const sorted = Object.entries(bycat).sort((a, b) => b[1] - a[1]).slice(0, 6);
-
-  const container = document.getElementById('top-categories');
-  if (!sorted.length) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><h3>Нет данных</h3></div>`;
-    return;
-  }
-
-  container.innerHTML = sorted.map(([cat, amt]) => {
-    const pct = Math.round((amt / total) * 100);
-    const color = CAT_COLORS[cat] || '#818cf8';
-    return `<div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px">
-        <span>${CAT_ICONS[cat]||'📦'} ${cat}</span>
-        <span style="font-weight:600">${fmt(amt)} <span style="color:var(--text-muted);font-weight:400;font-size:12px">(${pct}%)</span></span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-// ============================================================
-// MODAL UTILS
-// ============================================================
-function closeModal(id) {
-  document.getElementById(id).classList.remove('open');
-}
-
-// Close on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) overlay.classList.remove('open');
-  });
-});
-
-// ============================================================
-// EXPORT / IMPORT
-// ============================================================
-function exportData() {
-  const data = { transactions: state.transactions, budgets: state.budgets, goals: state.goals };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'finflow-backup-' + new Date().toISOString().slice(0, 10) + '.json';
-  a.click();
-  toast('Данные экспортированы');
-}
-
-function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (data.transactions) state.transactions = data.transactions;
-      if (data.budgets) state.budgets = data.budgets;
-      if (data.goals) state.goals = data.goals;
-      save();
-      toast('Данные импортированы');
-      renderDashboard();
-    } catch(err) { toast('Ошибка импорта', 'error'); }
-  };
-  reader.readAsText(file);
-  e.target.value = '';
-}
-
-// ============================================================
-// MOBILE
-// ============================================================
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-}
-
-// ============================================================
-// INIT
-// ============================================================
-function init() {
-  load();
-  updateMonthLabel();
-  navigate('dashboard');
-
-  // Add sample data if empty
-  if (!state.transactions.length) {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    const samples = [
-      { id: id(), type: 'income', amount: 85000, desc: 'Зарплата', category: 'Зарплата', date: `${y}-${String(m+1).padStart(2,'0')}-01` },
-      { id: id(), type: 'income', amount: 15000, desc: 'Фриланс проект', category: 'Фриланс', date: `${y}-${String(m+1).padStart(2,'0')}-05` },
-      { id: id(), type: 'expense', amount: 35000, desc: 'Аренда квартиры', category: 'Жильё', date: `${y}-${String(m+1).padStart(2,'0')}-02` },
-      { id: id(), type: 'expense', amount: 8500, desc: 'Продукты', category: 'Еда', date: `${y}-${String(m+1).padStart(2,'0')}-08` },
-      { id: id(), type: 'expense', amount: 3200, desc: 'Метро и такси', category: 'Транспорт', date: `${y}-${String(m+1).padStart(2,'0')}-10` },
-      { id: id(), type: 'expense', amount: 2500, desc: 'Кино и кафе', category: 'Развлечения', date: `${y}-${String(m+1).padStart(2,'0')}-12` },
-      { id: id(), type: 'expense', amount: 1800, desc: 'Интернет и телефон', category: 'Связь', date: `${y}-${String(m+1).padStart(2,'0')}-03` },
-    ];
-    state.transactions = samples;
-    state.budgets = { 'Еда': 15000, 'Жильё': 40000, 'Транспорт': 5000, 'Развлечения': 8000 };
-    state.goals = [
-      { id: id(), name: 'Отпуск в Испании', target: 150000, saved: 45000, icon: '🏖️', deadline: `${y+1}-06-01` },
-      { id: id(), name: 'Новый ноутбук', target: 80000, saved: 32000, icon: '💻', deadline: `${y}-12-31` }
-    ];
-    save();
-  }
-
-  renderDashboard();
-}
-
-init();
-</script>
+  <div class="toast-container" id="toast-container"></div>
 </body>
 </html>
