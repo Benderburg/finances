@@ -4,6 +4,7 @@ export const state = {
   user: null,
   profile: null,
   currentPage: "dashboard",
+  openMenu: null,
   currentMonth: new Date().getMonth(),
   currentYear: new Date().getFullYear(),
   filter: "all",

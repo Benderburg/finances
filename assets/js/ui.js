@@ -12,6 +12,16 @@ import {
 import { getMonthTransactions, state, sumTransactions } from "./store.js";
 
 const charts = {};
+const LANGUAGE_FLAGS = {
+  ro: "🇲🇩",
+  ru: "🇷🇺",
+  en: "🇺🇸"
+};
+const CURRENCY_SIGNS = {
+  MDL: "L",
+  EUR: "€",
+  USD: "$"
+};
 
 export function t(key) {
   return TRANSLATIONS[state.language]?.[key] || TRANSLATIONS[DEFAULT_LANGUAGE]?.[key] || key;
@@ -72,18 +82,22 @@ export function renderStaticTexts() {
 }
 
 export function renderPreferenceSelectors() {
-  const languageSelect = document.getElementById("language-select");
-  const currencySelect = document.getElementById("currency-select");
+  const languagePopover = document.getElementById("language-popover");
+  const currencyPopover = document.getElementById("currency-popover");
+  const languageButton = document.getElementById("language-button");
+  const currencyButton = document.getElementById("currency-button");
 
-  languageSelect.innerHTML = SUPPORTED_LANGUAGES
-    .map((language) => `<option value="${language}">${t(`language_${language}`)}</option>`)
+  languagePopover.innerHTML = SUPPORTED_LANGUAGES
+    .map((language) => `<button class="round-option${language === state.language ? " active" : ""}" type="button" data-language-option="${language}" title="${t(`language_${language}`)}">${LANGUAGE_FLAGS[language] || language.toUpperCase()}</button>`)
     .join("");
-  currencySelect.innerHTML = SUPPORTED_CURRENCIES
-    .map((currency) => `<option value="${currency}">${t(`currency_${currency}`)}</option>`)
+  currencyPopover.innerHTML = SUPPORTED_CURRENCIES
+    .map((currency) => `<button class="round-option${currency === state.currency ? " active" : ""}" type="button" data-currency-option="${currency}" title="${t(`currency_${currency}`)}">${CURRENCY_SIGNS[currency] || currency}</button>`)
     .join("");
 
-  languageSelect.value = state.language;
-  currencySelect.value = state.currency;
+  languageButton.textContent = LANGUAGE_FLAGS[state.language] || state.language.toUpperCase();
+  currencyButton.textContent = CURRENCY_SIGNS[state.currency] || state.currency;
+  languagePopover.classList.toggle("open", state.openMenu === "language-popover");
+  currencyPopover.classList.toggle("open", state.openMenu === "currency-popover");
 }
 
 export function updateMonthLabel() {
@@ -114,15 +128,30 @@ export function renderAuthMode() {
 }
 
 export function renderUserHeader() {
-  const email = state.user?.email || "user@example.com";
+  const email = state.profile?.email || state.user?.email || "user@example.com";
   const name = state.profile?.full_name || email.split("@")[0] || t("user_fallback");
+  const avatarUrl = state.profile?.avatar_url || state.user?.user_metadata?.avatar_url || "";
+
   document.getElementById("user-name").textContent = name;
   document.getElementById("user-email").textContent = email;
-  document.getElementById("user-avatar").textContent = name.slice(0, 1).toUpperCase();
+  renderAvatar(document.getElementById("user-avatar"), name, avatarUrl, true);
+  renderAvatar(document.getElementById("settings-avatar-preview"), name, avatarUrl);
+}
+
+export function renderSettingsPage() {
+  const email = state.profile?.email || state.user?.email || "";
+  const name = state.profile?.full_name || email.split("@")[0] || "";
+  const avatarUrl = state.profile?.avatar_url || state.user?.user_metadata?.avatar_url || "";
+
+  document.getElementById("settings-name").value = name;
+  document.getElementById("settings-email").value = email;
+  document.getElementById("settings-avatar").value = avatarUrl;
+  renderAvatar(document.getElementById("settings-avatar-preview"), name || t("user_fallback"), avatarUrl);
 }
 
 export function renderCurrentPage() {
   renderNavigation();
+  document.querySelector(".hero").classList.toggle("hidden", state.currentPage === "settings");
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("active", page.id === `page-${state.currentPage}`);
   });
@@ -137,6 +166,8 @@ export function renderCurrentPage() {
     renderGoals();
   } else if (state.currentPage === "reports") {
     renderReports();
+  } else if (state.currentPage === "settings") {
+    renderSettingsPage();
   }
 }
 
@@ -307,6 +338,26 @@ function renderRecentTransactions(transactions) {
   }
 
   container.innerHTML = recent.map((transaction) => getTransactionMarkup(transaction)).join("");
+}
+
+function renderAvatar(element, name, avatarUrl, keepGear = false) {
+  if (!element) {
+    return;
+  }
+
+  const initial = (name || t("user_fallback")).slice(0, 1).toUpperCase();
+  element.style.backgroundImage = avatarUrl ? `linear-gradient(rgba(11, 16, 22, 0.16), rgba(11, 16, 22, 0.16)), url("${avatarUrl}")` : "";
+  element.style.backgroundSize = avatarUrl ? "cover" : "";
+  element.style.backgroundPosition = avatarUrl ? "center" : "";
+  element.textContent = avatarUrl ? "" : initial;
+
+  if (keepGear) {
+    const gear = document.createElement("span");
+    gear.className = "avatar-gear";
+    gear.setAttribute("aria-hidden", "true");
+    gear.textContent = "⚙";
+    element.appendChild(gear);
+  }
 }
 
 function renderDashChart(transactions) {

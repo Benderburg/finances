@@ -4,6 +4,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
   full_name text,
+  avatar_url text,
   language text not null default 'ro' check (language in ('ro', 'ru', 'en')),
   currency text not null default 'MDL' check (currency in ('MDL', 'EUR', 'USD')),
   created_at timestamptz not null default timezone('utc', now()),

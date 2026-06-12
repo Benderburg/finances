@@ -44,7 +44,8 @@ export async function saveProfile(supabase, user) {
   const payload = {
     id: user.id,
     email: user.email,
-    full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User"
+    full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+    avatar_url: user.user_metadata?.avatar_url || null
   };
 
   const { error } = await supabase.from("profiles").upsert(payload);
@@ -54,6 +55,46 @@ export async function saveProfile(supabase, user) {
 }
 
 export async function updateProfilePreferences(supabase, userId, payload) {
+  const { error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateUserProfile(supabase, payload) {
+  const updates = {};
+
+  if (payload.email) {
+    updates.email = payload.email;
+  }
+
+  if (payload.fullName !== undefined || payload.avatarUrl !== undefined) {
+    updates.data = {};
+
+    if (payload.fullName !== undefined) {
+      updates.data.full_name = payload.fullName;
+    }
+
+    if (payload.avatarUrl !== undefined) {
+      updates.data.avatar_url = payload.avatarUrl || null;
+    }
+  }
+
+  if (!Object.keys(updates).length) {
+    return;
+  }
+
+  const { error } = await supabase.auth.updateUser(updates);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function updateProfileDetails(supabase, userId, payload) {
   const { error } = await supabase
     .from("profiles")
     .update(payload)

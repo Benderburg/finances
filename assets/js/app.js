@@ -17,7 +17,9 @@ import {
   signIn,
   signOut,
   signUp,
-  updateProfilePreferences
+  updateProfileDetails,
+  updateProfilePreferences,
+  updateUserProfile
 } from "./supabase-api.js";
 import {
   renderAuthMode,
@@ -68,9 +70,10 @@ function bindStaticEvents() {
   document.getElementById("transaction-form").addEventListener("submit", handleTransactionSubmit);
   document.getElementById("budget-form").addEventListener("submit", handleBudgetSubmit);
   document.getElementById("goal-form").addEventListener("submit", handleGoalSubmit);
+  document.getElementById("settings-form").addEventListener("submit", handleSettingsSubmit);
   document.getElementById("import-file").addEventListener("change", handleImport);
-  document.getElementById("language-select").addEventListener("change", handleLanguageChange);
-  document.getElementById("currency-select").addEventListener("change", handleCurrencyChange);
+  document.getElementById("settings-name").addEventListener("input", handleAvatarPreview);
+  document.getElementById("settings-avatar").addEventListener("input", handleAvatarPreview);
 }
 
 async function applySession(session) {
@@ -82,6 +85,8 @@ async function applySession(session) {
     state.goals = [];
     state.language = DEFAULT_LANGUAGE;
     state.currency = DEFAULT_CURRENCY;
+    state.currentPage = "dashboard";
+    state.openMenu = null;
     renderStaticTexts();
     showAuth();
     return;
@@ -115,6 +120,29 @@ async function hydrateWorkspace() {
 }
 
 function handleDocumentClick(event) {
+  const menuToggle = event.target.closest("[data-menu-toggle]");
+  if (menuToggle) {
+    toggleMenu(menuToggle.dataset.menuToggle);
+    return;
+  }
+
+  const languageOption = event.target.closest("[data-language-option]");
+  if (languageOption) {
+    handleLanguageChange(languageOption.dataset.languageOption);
+    return;
+  }
+
+  const currencyOption = event.target.closest("[data-currency-option]");
+  if (currencyOption) {
+    handleCurrencyChange(currencyOption.dataset.currencyOption);
+    return;
+  }
+
+  if (state.openMenu && !event.target.closest(".round-menu")) {
+    state.openMenu = null;
+    renderPreferenceSelectors();
+  }
+
   const modeButton = event.target.closest("[data-auth-mode]");
   if (modeButton) {
     state.authMode = modeButton.dataset.authMode;
@@ -465,6 +493,10 @@ async function handleImport(event) {
 }
 
 async function handleLogout() {
+  if (!window.confirm(t("confirm_logout"))) {
+    return;
+  }
+
   try {
     await signOut(supabase);
     showToast(t("toast_session_ended"), "info");
@@ -473,8 +505,9 @@ async function handleLogout() {
   }
 }
 
-async function handleLanguageChange(event) {
-  state.language = event.target.value;
+async function handleLanguageChange(language) {
+  state.language = language;
+  state.openMenu = null;
   renderStaticTexts();
   renderUserHeader();
   renderCurrentPage();
@@ -484,8 +517,9 @@ async function handleLanguageChange(event) {
   }
 }
 
-async function handleCurrencyChange(event) {
-  state.currency = event.target.value;
+async function handleCurrencyChange(currency) {
+  state.currency = currency;
+  state.openMenu = null;
   renderCurrentPage();
   renderPreferenceSelectors();
 
@@ -503,6 +537,47 @@ async function persistPreferences() {
   } catch (error) {
     showToast(error.message, "error");
   }
+}
+
+async function handleSettingsSubmit(event) {
+  event.preventDefault();
+
+  const fullName = document.getElementById("settings-name").value.trim();
+  const email = document.getElementById("settings-email").value.trim();
+  const avatarUrl = document.getElementById("settings-avatar").value.trim();
+
+  try {
+    await updateUserProfile(supabase, {
+      fullName,
+      email,
+      avatarUrl
+    });
+    await updateProfileDetails(supabase, state.user.id, {
+      full_name: fullName || email.split("@")[0] || null,
+      email,
+      avatar_url: avatarUrl || null
+    });
+    await hydrateWorkspace();
+    showToast(t("toast_profile_saved"));
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function handleAvatarPreview() {
+  const avatar = document.getElementById("settings-avatar-preview");
+  const name = document.getElementById("settings-name").value.trim() || state.profile?.full_name || state.user?.email || t("user_fallback");
+  const avatarUrl = document.getElementById("settings-avatar").value.trim();
+
+  avatar.style.backgroundImage = avatarUrl ? `linear-gradient(rgba(11, 16, 22, 0.16), rgba(11, 16, 22, 0.16)), url("${avatarUrl}")` : "";
+  avatar.style.backgroundSize = avatarUrl ? "cover" : "";
+  avatar.style.backgroundPosition = avatarUrl ? "center" : "";
+  avatar.textContent = avatarUrl ? "" : name.slice(0, 1).toUpperCase();
+}
+
+function toggleMenu(menuId) {
+  state.openMenu = state.openMenu === menuId ? null : menuId;
+  renderPreferenceSelectors();
 }
 
 function runAction(action, dataset) {

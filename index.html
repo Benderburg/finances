@@ -62,7 +62,7 @@
     <aside class="sidebar" id="sidebar">
       <div class="logo">
         <div class="logo-text" data-i18n="brand_name">Norocel</div>
-        <div class="logo-sub" data-i18n="brand_subtitle">Finanțe personale pentru Moldova</div>
+        <div class="logo-sub" data-i18n="brand_subtitle">Bugetul tău sub un norișor</div>
       </div>
 
       <nav class="nav" aria-label="Main navigation">
@@ -89,45 +89,41 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button class="btn-icon" id="export-button" type="button" data-i18n="export">Export</button>
-        <label class="btn-icon" for="import-file">
-          <span data-i18n="import">Import</span>
-          <input id="import-file" type="file" accept=".json" hidden>
-        </label>
+        <div class="sidebar-user-panel">
+          <button class="sidebar-user-main" id="user-settings-button" type="button" data-page="settings" data-i18n-title="settings_title">
+            <div class="topbar-avatar avatar-button" id="user-avatar">N<span class="avatar-gear" aria-hidden="true">⚙</span></div>
+            <div class="sidebar-user-copy">
+              <div class="topbar-name" id="user-name">Norocel</div>
+              <div class="topbar-email" id="user-email">user@example.com</div>
+            </div>
+          </button>
+
+          <div class="sidebar-user-actions">
+            <div class="round-menu">
+              <div class="round-menu-popover" id="language-popover"></div>
+              <button class="round-icon-btn" id="language-button" type="button" data-menu-toggle="language-popover" data-i18n-title="topbar_language">🇲🇩</button>
+            </div>
+            <div class="round-menu">
+              <div class="round-menu-popover" id="currency-popover"></div>
+              <button class="round-icon-btn" id="currency-button" type="button" data-menu-toggle="currency-popover" data-i18n-title="topbar_currency">L</button>
+            </div>
+            <button class="round-icon-btn danger" id="logout-button" type="button" data-i18n-title="logout" aria-label="Logout">⎋</button>
+          </div>
+        </div>
       </div>
     </aside>
 
     <main class="main">
-      <header class="topbar">
-        <div class="topbar-user">
-          <div class="topbar-avatar" id="user-avatar">N</div>
-          <div>
-            <div class="topbar-name" id="user-name">Norocel</div>
-            <div class="topbar-email" id="user-email">user@example.com</div>
-          </div>
-        </div>
-
-        <div class="topbar-controls">
-          <label class="pref-control">
-            <span data-i18n="topbar_language">Limbă</span>
-            <select class="form-select compact-select" id="language-select"></select>
-          </label>
-          <label class="pref-control">
-            <span data-i18n="topbar_currency">Monedă</span>
-            <select class="form-select compact-select" id="currency-select"></select>
-          </label>
-          <button class="btn btn-secondary btn-sm" id="logout-button" type="button" data-i18n="logout">Ieșire</button>
-        </div>
-      </header>
-
       <section class="hero">
-        <div>
-          <p class="hero-kicker" data-i18n="hero_kicker">Centru financiar personal</p>
-          <h1 class="hero-title" data-i18n="hero_title">Controlează banii, bugetele și obiectivele într-un singur loc.</h1>
-        </div>
         <div class="hero-actions">
-          <button class="btn btn-secondary" id="quick-expense" type="button" data-i18n="quick_expense">- Cheltuială</button>
-          <button class="btn btn-primary" id="quick-income" type="button" data-i18n="quick_income">+ Venit</button>
+          <button class="btn btn-expense-action" id="quick-expense" type="button">
+            <span class="btn-action-icon" aria-hidden="true">💳</span>
+            <span data-i18n="quick_expense">Cheltuială</span>
+          </button>
+          <button class="btn btn-primary" id="quick-income" type="button">
+            <span class="btn-action-icon" aria-hidden="true">💼</span>
+            <span data-i18n="quick_income">Venit</span>
+          </button>
         </div>
       </section>
 
@@ -301,6 +297,58 @@
           <div id="top-categories"></div>
         </article>
       </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_settings">Setări</div>
+            <div class="page-subtitle" data-i18n="subtitle_settings">Profilul tău, avatarul și backup-ul datelor</div>
+          </div>
+        </div>
+
+        <div class="grid-2 settings-grid">
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="card_profile_settings">Profil utilizator</div>
+            </div>
+            <form id="settings-form">
+              <div class="form-group">
+                <label class="form-label" for="settings-name" data-i18n="field_name">Prenume</label>
+                <input class="form-input" id="settings-name" type="text" data-i18n-placeholder="placeholder_name" placeholder="Ion">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="settings-email" data-i18n="field_email">Email</label>
+                <input class="form-input" id="settings-email" type="email" data-i18n-placeholder="placeholder_email" placeholder="you@example.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="settings-avatar" data-i18n="field_avatar">Avatar URL</label>
+                <input class="form-input" id="settings-avatar" type="url" data-i18n-placeholder="placeholder_avatar" placeholder="https://example.com/avatar.png">
+              </div>
+              <div class="settings-preview">
+                <div class="topbar-avatar settings-avatar-preview" id="settings-avatar-preview">N</div>
+                <div class="settings-preview-copy" data-i18n="settings_avatar_hint">Previzualizarea avatarului se actualizează imediat.</div>
+              </div>
+              <div class="form-actions">
+                <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="card_data_settings">Import și export</div>
+            </div>
+            <div class="settings-actions">
+              <button class="btn btn-secondary" id="export-button" type="button" data-i18n="export">Export</button>
+              <label class="btn btn-secondary settings-import-label" for="import-file">
+                <span data-i18n="import">Import</span>
+                <input id="import-file" type="file" accept=".json" hidden>
+              </label>
+            </div>
+            <p class="settings-note" data-i18n="settings_data_hint">Importul înlocuiește tranzacțiile, bugetele și obiectivele existente.</p>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -312,8 +360,8 @@
       </div>
 
       <div class="type-toggle">
-        <button class="type-btn active-income" id="btn-income" type="button" data-type="income" data-i18n="transaction_income">Venit</button>
         <button class="type-btn" id="btn-expense" type="button" data-type="expense" data-i18n="transaction_expense">Cheltuială</button>
+        <button class="type-btn active-income" id="btn-income" type="button" data-type="income" data-i18n="transaction_income">Venit</button>
       </div>
 
       <form id="transaction-form">
