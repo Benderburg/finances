@@ -106,20 +106,23 @@ export async function updateProfileDetails(supabase, userId, payload) {
 }
 
 export async function loadUserWorkspace(supabase, userId) {
-  const [profileResult, transactionsResult, budgetsResult, goalsResult] = await Promise.all([
+  const [profileResult, accountsResult, transactionsResult, budgetsResult, goalsResult] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-    supabase.from("transactions").select("*").eq("user_id", userId).order("transaction_date", { ascending: false }),
+    supabase.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+    supabase.from("transactions").select("*").eq("user_id", userId).order("transaction_date", { ascending: false }).order("created_at", { ascending: false }),
     supabase.from("budgets").select("*").eq("user_id", userId).order("category", { ascending: true }),
     supabase.from("goals").select("*").eq("user_id", userId).order("created_at", { ascending: false })
   ]);
 
   throwIfError(profileResult.error);
+  throwIfError(accountsResult.error);
   throwIfError(transactionsResult.error);
   throwIfError(budgetsResult.error);
   throwIfError(goalsResult.error);
 
   return {
     profile: profileResult.data,
+    accounts: (accountsResult.data || []).map(mapAccountFromDb),
     transactions: (transactionsResult.data || []).map(mapTransactionFromDb),
     budgets: (budgetsResult.data || []).reduce((accumulator, item) => {
       accumulator[normalizeCategory(item.category)] = Number(item.monthly_limit);
@@ -155,7 +158,19 @@ export async function deleteTransactionById(supabase, userId, transactionId) {
   }
 }
 
-export async function saveBudget(supabase, userId, category, monthlyLimit) {
+export async function saveBudget(supabase, userId, category, monthlyLimit, previousCategory = "") {
+  if (previousCategory && previousCategory !== category) {
+    const { error } = await supabase
+      .from("budgets")
+      .delete()
+      .eq("user_id", userId)
+      .eq("category", previousCategory);
+
+    if (error) {
+      throw error;
+    }
+  }
+
   const { error } = await supabase
     .from("budgets")
     .upsert(
@@ -179,11 +194,43 @@ export async function deleteBudgetByCategory(supabase, userId, category) {
   }
 }
 
+export async function saveAccount(supabase, userId, account) {
+  const payload = mapAccountToDb(userId, account);
+
+  if (account.id) {
+    const { error } = await supabase
+      .from("accounts")
+      .update(payload)
+      .eq("id", account.id)
+      .eq("user_id", userId);
+
+    if (error) {
+      throw error;
+    }
+
+    return;
+  }
+
+  const { error } = await supabase.from("accounts").insert(payload);
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteAccountById(supabase, userId, accountId) {
+  const { error } = await supabase.from("accounts").delete().eq("id", accountId).eq("user_id", userId);
+  if (error) {
+    throw error;
+  }
+}
+
 export async function saveGoal(supabase, userId, goal) {
+  const payload = mapGoalToDb(userId, goal);
+
   if (goal.id) {
     const { error } = await supabase
       .from("goals")
-      .update(mapGoalToDb(userId, goal))
+      .update(payload)
       .eq("id", goal.id)
       .eq("user_id", userId);
 
@@ -194,7 +241,7 @@ export async function saveGoal(supabase, userId, goal) {
     return;
   }
 
-  const { error } = await supabase.from("goals").insert(mapGoalToDb(userId, goal));
+  const { error } = await supabase.from("goals").insert(payload);
   if (error) {
     throw error;
   }
@@ -211,6 +258,7 @@ export async function exportUserData(supabase, userId) {
   const workspace = await loadUserWorkspace(supabase, userId);
   return {
     profile: workspace.profile,
+    accounts: workspace.accounts,
     transactions: workspace.transactions,
     budgets: workspace.budgets,
     goals: workspace.goals
@@ -218,6 +266,7 @@ export async function exportUserData(supabase, userId) {
 }
 
 export async function importUserData(supabase, userId, payload) {
+  const accounts = Array.isArray(payload.accounts) ? payload.accounts : [];
   const transactions = Array.isArray(payload.transactions) ? payload.transactions : [];
   const goals = Array.isArray(payload.goals) ? payload.goals : [];
   const budgets = payload.budgets && typeof payload.budgets === "object" ? payload.budgets : {};
@@ -226,12 +275,13 @@ export async function importUserData(supabase, userId, payload) {
   await Promise.all([
     supabase.from("transactions").delete().eq("user_id", userId),
     supabase.from("goals").delete().eq("user_id", userId),
+    supabase.from("accounts").delete().eq("user_id", userId),
     supabase.from("budgets").delete().eq("user_id", userId)
   ]);
 
-  if (transactions.length) {
-    const { error } = await supabase.from("transactions").insert(
-      transactions.map((item) => mapTransactionToDb(userId, item, item.id))
+  if (accounts.length) {
+    const { error } = await supabase.from("accounts").insert(
+      accounts.map((item) => mapAccountToDb(userId, item, item.id))
     );
     if (error) {
       throw error;
@@ -241,6 +291,15 @@ export async function importUserData(supabase, userId, payload) {
   if (goals.length) {
     const { error } = await supabase.from("goals").insert(
       goals.map((item) => mapGoalToDb(userId, item, item.id))
+    );
+    if (error) {
+      throw error;
+    }
+  }
+
+  if (transactions.length) {
+    const { error } = await supabase.from("transactions").insert(
+      transactions.map((item) => mapTransactionToDb(userId, item, item.id))
     );
     if (error) {
       throw error;
@@ -276,14 +335,46 @@ export async function importUserData(supabase, userId, payload) {
   }
 }
 
+function mapAccountFromDb(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    currencyCode: item.currency_code,
+    openingBalance: Number(item.opening_balance || 0),
+    includeInTotal: Boolean(item.include_in_total),
+    createdAt: item.created_at
+  };
+}
+
+function mapAccountToDb(userId, account, forcedId) {
+  return {
+    ...(forcedId || account.id ? { id: forcedId || account.id } : {}),
+    user_id: userId,
+    name: account.name,
+    type: account.type,
+    currency_code: account.currencyCode,
+    opening_balance: account.openingBalance || 0,
+    include_in_total: account.includeInTotal !== false
+  };
+}
+
 function mapTransactionFromDb(item) {
   return {
     id: item.id,
     amount: Number(item.amount),
+    convertedAmount: item.converted_amount === null ? null : Number(item.converted_amount),
+    exchangeRate: item.exchange_rate === null ? null : Number(item.exchange_rate),
     desc: item.description || "",
     date: item.transaction_date,
-    category: normalizeCategory(item.category),
-    type: item.type
+    category: item.category ? normalizeCategory(item.category) : "",
+    type: item.type,
+    accountId: item.account_id || "",
+    fromAccountId: item.from_account_id || "",
+    toAccountId: item.to_account_id || "",
+    currencyCode: item.currency_code,
+    convertedCurrencyCode: item.converted_currency_code || "",
+    goalId: item.goal_id || ""
   };
 }
 
@@ -292,10 +383,18 @@ function mapTransactionToDb(userId, transaction, forcedId) {
     ...(forcedId || transaction.id ? { id: forcedId || transaction.id } : {}),
     user_id: userId,
     amount: transaction.amount,
+    converted_amount: transaction.convertedAmount ?? null,
+    exchange_rate: transaction.exchangeRate ?? null,
     description: transaction.desc || null,
     transaction_date: transaction.date,
-    category: normalizeCategory(transaction.category),
-    type: transaction.type
+    category: transaction.category ? normalizeCategory(transaction.category) : null,
+    type: transaction.type,
+    account_id: transaction.accountId || null,
+    from_account_id: transaction.fromAccountId || null,
+    to_account_id: transaction.toAccountId || null,
+    currency_code: transaction.currencyCode,
+    converted_currency_code: transaction.convertedCurrencyCode || null,
+    goal_id: transaction.goalId || null
   };
 }
 
@@ -304,9 +403,13 @@ function mapGoalFromDb(item) {
     id: item.id,
     name: item.name,
     target: Number(item.target_amount),
-    saved: Number(item.saved_amount),
+    saved: Number(item.saved_amount || 0),
     icon: item.icon || "🎯",
-    deadline: item.deadline
+    deadline: item.deadline,
+    currencyCode: item.currency_code,
+    savingsAccountId: item.savings_account_id || "",
+    status: item.status,
+    completedAt: item.completed_at
   };
 }
 
@@ -316,9 +419,13 @@ function mapGoalToDb(userId, goal, forcedId) {
     user_id: userId,
     name: goal.name,
     target_amount: goal.target,
-    saved_amount: goal.saved,
+    saved_amount: goal.saved || 0,
     icon: goal.icon || "🎯",
-    deadline: goal.deadline || null
+    deadline: goal.deadline || null,
+    currency_code: goal.currencyCode,
+    savings_account_id: goal.savingsAccountId || null,
+    status: goal.status || "active",
+    completed_at: goal.completedAt || null
   };
 }
 

@@ -1,14 +1,29 @@
-import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, EXPENSE_CATEGORIES } from "./config.js";
-import { state } from "./store.js";
+import {
+  ACCOUNT_TYPES,
+  DEFAULT_CURRENCY,
+  DEFAULT_LANGUAGE,
+  EXPENSE_CATEGORIES,
+  SUPPORTED_CURRENCIES
+} from "./config.js";
+import {
+  state,
+  getAccountBalance,
+  getAccountById,
+  getGoalProgress,
+  getGoalSavedAmount,
+  getSavingsAccounts
+} from "./store.js";
 import { createSupabaseClient, isSupabaseConfigured } from "./supabase.js";
 import {
   createTransaction,
+  deleteAccountById,
   deleteBudgetByCategory,
   deleteGoalById,
   deleteTransactionById,
   exportUserData,
   importUserData,
   loadUserWorkspace,
+  saveAccount,
   saveBudget,
   saveGoal,
   saveProfile,
@@ -22,11 +37,9 @@ import {
   updateUserProfile
 } from "./supabase-api.js";
 import {
-  renderAuthMode,
+  formatMoney,
   renderBudget,
   renderCurrentPage,
-  renderGoals,
-  renderNavigation,
   renderPreferenceSelectors,
   renderStaticTexts,
   renderUserHeader,
@@ -37,6 +50,7 @@ import {
 } from "./ui.js";
 
 let supabase;
+let confirmResolver = null;
 
 window.addEventListener("DOMContentLoaded", init);
 
@@ -48,6 +62,7 @@ async function init() {
   if (!isSupabaseConfigured()) {
     disableAuth(t("error_setup_required"));
     bindStaticEvents();
+    finishBoot();
     return;
   }
 
@@ -60,6 +75,7 @@ async function init() {
   }
 
   await applySession(data.session);
+  finishBoot();
 
   supabase.auth.onAuthStateChange(async (_event, session) => {
     await applySession(session);
@@ -72,22 +88,30 @@ function bindStaticEvents() {
   document.getElementById("transaction-form").addEventListener("submit", handleTransactionSubmit);
   document.getElementById("budget-form").addEventListener("submit", handleBudgetSubmit);
   document.getElementById("goal-form").addEventListener("submit", handleGoalSubmit);
+  document.getElementById("account-form").addEventListener("submit", handleAccountSubmit);
+  document.getElementById("transfer-form").addEventListener("submit", handleTransferSubmit);
+  document.getElementById("account-expense-form").addEventListener("submit", handleAccountExpenseSubmit);
+  document.getElementById("goal-spend-form").addEventListener("submit", handleGoalSpendSubmit);
+  document.getElementById("confirm-form").addEventListener("submit", handleConfirmSubmit);
   document.getElementById("settings-form").addEventListener("submit", handleSettingsSubmit);
   document.getElementById("import-file").addEventListener("change", handleImport);
   document.getElementById("settings-name").addEventListener("input", handleAvatarPreview);
   document.getElementById("settings-avatar").addEventListener("input", handleAvatarPreview);
+  document.getElementById("goal-currency").addEventListener("change", syncGoalAccountOptions);
 }
 
 async function applySession(session) {
   if (!session?.user) {
     state.user = null;
     state.profile = null;
+    state.accounts = [];
     state.transactions = [];
     state.budgets = {};
     state.goals = [];
     state.language = DEFAULT_LANGUAGE;
     state.currency = DEFAULT_CURRENCY;
     state.currentPage = "dashboard";
+    state.activeAccountId = "";
     state.openMenu = null;
     renderStaticTexts();
     showAuth();
@@ -110,14 +134,18 @@ async function hydrateWorkspace() {
   state.profile = workspace.profile;
   state.language = workspace.profile?.language || DEFAULT_LANGUAGE;
   state.currency = workspace.profile?.currency || DEFAULT_CURRENCY;
+  state.accounts = workspace.accounts;
   state.transactions = workspace.transactions;
   state.budgets = workspace.budgets;
   state.goals = workspace.goals;
 
+  if (!state.activeAccountId || !state.accounts.some((account) => account.id === state.activeAccountId)) {
+    state.activeAccountId = getSavingsAccounts()[0]?.id || state.accounts[0]?.id || "";
+  }
+
   renderStaticTexts();
   renderUserHeader();
   updateMonthLabel();
-  renderNavigation();
   renderCurrentPage();
 }
 
@@ -154,7 +182,7 @@ function handleDocumentClick(event) {
   const modeButton = event.target.closest("[data-auth-mode]");
   if (modeButton) {
     state.authMode = modeButton.dataset.authMode;
-    renderAuthMode();
+    renderStaticTexts();
     return;
   }
 
@@ -226,6 +254,25 @@ function handleDocumentClick(event) {
     return;
   }
 
+  if (event.target.id === "add-account-button") {
+    openAccountModal();
+    return;
+  }
+
+  if (event.target.id === "account-delete-button") {
+    const accountId = document.getElementById("account-edit-id").value;
+    if (accountId) {
+      closeModal("account-modal");
+      deleteAccount(accountId);
+    }
+    return;
+  }
+
+  if (event.target.id === "open-transfer-button") {
+    openTransferModal();
+    return;
+  }
+
   if (event.target.id === "logout-button") {
     handleLogout();
     return;
@@ -290,18 +337,19 @@ async function handleAuthSubmit(event) {
   }
 }
 
-function openTransactionModal(type = "income") {
+function openTransactionModal(type = "income", accountId = "") {
   document.getElementById("tx-edit-id").value = "";
   document.getElementById("modal-title").textContent = t("modal_new_transaction");
   document.getElementById("transaction-form").reset();
   document.getElementById("tx-date").value = new Date().toISOString().split("T")[0];
+  populateAccountSelect("tx-account", state.accounts, accountId || getDefaultRegularAccountId());
   setTransactionType(type);
   openModal("add-modal");
 }
 
 function editTransaction(transactionId) {
   const transaction = state.transactions.find((item) => item.id === transactionId);
-  if (!transaction) {
+  if (!transaction || (transaction.type !== "income" && transaction.type !== "expense")) {
     return;
   }
 
@@ -310,6 +358,7 @@ function editTransaction(transactionId) {
   document.getElementById("tx-amount").value = transaction.amount;
   document.getElementById("tx-desc").value = transaction.desc || "";
   document.getElementById("tx-date").value = transaction.date;
+  populateAccountSelect("tx-account", state.accounts, transaction.accountId);
   setTransactionType(transaction.type);
   document.getElementById("tx-category").value = transaction.category;
   openModal("add-modal");
@@ -318,41 +367,61 @@ function editTransaction(transactionId) {
 async function handleTransactionSubmit(event) {
   event.preventDefault();
 
-  const amount = Number.parseFloat(document.getElementById("tx-amount").value);
-  const description = document.getElementById("tx-desc").value.trim();
-  const date = document.getElementById("tx-date").value;
-  const category = document.getElementById("tx-category").value;
-  const type = document.getElementById("tx-type").value;
-  const editId = document.getElementById("tx-edit-id").value;
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const amount = Number.parseFloat(document.getElementById("tx-amount").value);
+    const description = document.getElementById("tx-desc").value.trim();
+    const date = document.getElementById("tx-date").value;
+    const category = document.getElementById("tx-category").value;
+    const type = document.getElementById("tx-type").value;
+    const accountId = document.getElementById("tx-account").value;
+    const editId = document.getElementById("tx-edit-id").value;
+    const account = getAccountById(accountId);
 
-  if (!amount || amount <= 0) {
-    showToast(t("error_invalid_amount"), "error");
-    return;
-  }
-
-  if (!date) {
-    showToast(t("error_choose_date"), "error");
-    return;
-  }
-
-  try {
-    if (editId) {
-      await saveTransaction(supabase, state.user.id, { id: editId, amount, desc: description, date, category, type });
-      showToast(t("toast_tx_updated"));
-    } else {
-      await createTransaction(supabase, state.user.id, { amount, desc: description, date, category, type });
-      showToast(t("toast_tx_added"));
+    if (!amount || amount <= 0) {
+      showToast(t("error_invalid_amount"), "error");
+      return;
     }
 
-    await hydrateWorkspace();
-    closeModal("add-modal");
-  } catch (error) {
-    showToast(error.message, "error");
-  }
+    if (!date) {
+      showToast(t("error_choose_date"), "error");
+      return;
+    }
+
+    if (!account) {
+      showToast(t("error_select_account"), "error");
+      return;
+    }
+
+    const payload = {
+      id: editId || undefined,
+      amount,
+      desc: description,
+      date,
+      category,
+      type,
+      accountId,
+      currencyCode: account.currencyCode
+    };
+
+    try {
+      if (editId) {
+        await saveTransaction(supabase, state.user.id, payload);
+        showToast(t("toast_tx_updated"));
+      } else {
+        await createTransaction(supabase, state.user.id, payload);
+        showToast(t("toast_tx_added"));
+      }
+
+      await hydrateWorkspace();
+      closeModal("add-modal");
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
 }
 
 async function deleteTransaction(transactionId) {
-  if (!window.confirm(t("confirm_delete_transaction"))) {
+  if (!await confirmAction(t("confirm_delete_transaction"), t("action_delete"))) {
     return;
   }
 
@@ -367,6 +436,7 @@ async function deleteTransaction(transactionId) {
 
 function openBudgetModal() {
   document.getElementById("budget-form").reset();
+  document.getElementById("budget-edit-category").value = "";
   const select = document.getElementById("budget-cat");
   select.innerHTML = EXPENSE_CATEGORIES
     .map((category) => `<option value="${category}">${t(`category_${category}`)}</option>`)
@@ -374,9 +444,17 @@ function openBudgetModal() {
   openModal("budget-modal");
 }
 
+function editBudget(category) {
+  openBudgetModal();
+  document.getElementById("budget-edit-category").value = category;
+  document.getElementById("budget-cat").value = category;
+  document.getElementById("budget-limit").value = state.budgets[category] || "";
+}
+
 async function handleBudgetSubmit(event) {
   event.preventDefault();
 
+  const previousCategory = document.getElementById("budget-edit-category").value;
   const category = document.getElementById("budget-cat").value;
   const limit = Number.parseFloat(document.getElementById("budget-limit").value);
 
@@ -386,7 +464,7 @@ async function handleBudgetSubmit(event) {
   }
 
   try {
-    await saveBudget(supabase, state.user.id, category, limit);
+    await saveBudget(supabase, state.user.id, category, limit, previousCategory);
     await hydrateWorkspace();
     closeModal("budget-modal");
     showToast(t("toast_budget_saved"));
@@ -396,6 +474,10 @@ async function handleBudgetSubmit(event) {
 }
 
 async function deleteBudget(category) {
+  if (!await confirmAction(t("confirm_delete_budget"), t("action_delete"))) {
+    return;
+  }
+
   try {
     await deleteBudgetByCategory(supabase, state.user.id, category);
     await hydrateWorkspace();
@@ -406,70 +488,403 @@ async function deleteBudget(category) {
   }
 }
 
+function openAccountModal(accountId = "") {
+  const form = document.getElementById("account-form");
+  form.reset();
+  populateSimpleOptions("account-type", ACCOUNT_TYPES.map((type) => ({ value: type, label: t(type === "savings" ? "account_savings" : "account_regular") })));
+  populateSimpleOptions("account-currency", [
+    { value: "", label: t("placeholder_select_currency") },
+    ...SUPPORTED_CURRENCIES.map((currency) => ({ value: currency, label: currency }))
+  ]);
+  document.getElementById("account-modal-title").textContent = accountId ? t("modal_edit_account") : t("modal_new_account");
+  document.getElementById("account-edit-id").value = accountId;
+  document.getElementById("account-opening-balance").disabled = Boolean(accountId);
+  document.getElementById("account-delete-button").classList.toggle("hidden", !accountId);
+
+  if (!accountId) {
+    document.getElementById("account-type").value = "savings";
+    document.getElementById("account-currency").value = "";
+    document.getElementById("account-include-total").checked = true;
+  } else {
+    const account = getAccountById(accountId);
+    if (!account) {
+      return;
+    }
+
+    document.getElementById("account-name").value = account.name;
+    document.getElementById("account-type").value = account.type;
+    document.getElementById("account-currency").value = account.currencyCode;
+    document.getElementById("account-opening-balance").value = account.openingBalance;
+    document.getElementById("account-include-total").checked = account.includeInTotal;
+  }
+
+  openModal("account-modal");
+}
+
+async function handleAccountSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const accountId = document.getElementById("account-edit-id").value;
+    const name = document.getElementById("account-name").value.trim();
+    const type = document.getElementById("account-type").value;
+    const currencyCode = document.getElementById("account-currency").value;
+    const openingBalance = Number.parseFloat(document.getElementById("account-opening-balance").value) || 0;
+    const includeInTotal = document.getElementById("account-include-total").checked;
+    const linkedGoal = state.goals.find((goal) => goal.savingsAccountId === accountId);
+
+    if (!name) {
+      showToast(t("error_enter_account_name"), "error");
+      return;
+    }
+
+    if (!currencyCode) {
+      showToast(t("error_select_currency"), "error");
+      return;
+    }
+
+    if (linkedGoal && linkedGoal.currencyCode !== currencyCode) {
+      showToast(t("error_goal_currency_account_mismatch"), "error");
+      return;
+    }
+
+    try {
+      await saveAccount(supabase, state.user.id, {
+        id: accountId || undefined,
+        name,
+        type,
+        currencyCode,
+        openingBalance: accountId ? getAccountById(accountId)?.openingBalance || 0 : openingBalance,
+        includeInTotal
+      });
+      await hydrateWorkspace();
+      closeModal("account-modal");
+      showToast(t("toast_account_saved"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+async function deleteAccount(accountId) {
+  if (!await confirmAction(t("confirm_delete_account"), t("action_delete"))) {
+    return;
+  }
+
+  try {
+    await deleteAccountById(supabase, state.user.id, accountId);
+    await hydrateWorkspace();
+    showToast(t("toast_account_deleted"), "info");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function openTransferModal(toAccountId = "", fromAccountId = "") {
+  const form = document.getElementById("transfer-form");
+  form.reset();
+  populateAccountSelect("transfer-from-account", state.accounts, fromAccountId || getDefaultRegularAccountId());
+  populateAccountSelect("transfer-to-account", state.accounts, toAccountId);
+  document.getElementById("transfer-date").value = new Date().toISOString().split("T")[0];
+  openModal("transfer-modal");
+}
+
+async function handleTransferSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const fromAccountId = document.getElementById("transfer-from-account").value;
+    const toAccountId = document.getElementById("transfer-to-account").value;
+    const amount = Number.parseFloat(document.getElementById("transfer-amount-out").value);
+    const convertedAmount = Number.parseFloat(document.getElementById("transfer-amount-in").value);
+    const date = document.getElementById("transfer-date").value;
+    const desc = document.getElementById("transfer-comment").value.trim();
+    const manualRate = Number.parseFloat(document.getElementById("transfer-rate").value);
+    const fromAccount = getAccountById(fromAccountId);
+    const toAccount = getAccountById(toAccountId);
+
+    if (!fromAccount || !toAccount) {
+      showToast(t("error_select_transfer_accounts"), "error");
+      return;
+    }
+
+    if (fromAccountId === toAccountId) {
+      showToast(t("error_select_different_accounts"), "error");
+      return;
+    }
+
+    if (!amount || amount <= 0 || !convertedAmount || convertedAmount <= 0) {
+      showToast(t("error_enter_transfer_amount"), "error");
+      return;
+    }
+
+    if (fromAccount.currencyCode === toAccount.currencyCode && amount !== convertedAmount) {
+      showToast(t("error_same_currency_transfer"), "error");
+      return;
+    }
+
+    try {
+      await createTransaction(supabase, state.user.id, {
+        type: fromAccount.currencyCode === toAccount.currencyCode ? "transfer" : "exchange",
+        fromAccountId,
+        toAccountId,
+        amount,
+        convertedAmount,
+        exchangeRate: manualRate || null,
+        date,
+        desc,
+        currencyCode: fromAccount.currencyCode,
+        convertedCurrencyCode: toAccount.currencyCode
+      });
+      await hydrateWorkspace();
+      closeModal("transfer-modal");
+      showToast(t("toast_transfer_saved"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+function openAccountExpenseModal(accountId = "") {
+  const form = document.getElementById("account-expense-form");
+  form.reset();
+  populateAccountSelect("account-expense-account", state.accounts, accountId);
+  populateSimpleOptions("account-expense-category", EXPENSE_CATEGORIES.map((category) => ({ value: category, label: t(`category_${category}`) })));
+  document.getElementById("account-expense-date").value = new Date().toISOString().split("T")[0];
+  openModal("account-expense-modal");
+}
+
+async function handleAccountExpenseSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const accountId = document.getElementById("account-expense-account").value;
+    const amount = Number.parseFloat(document.getElementById("account-expense-amount").value);
+    const date = document.getElementById("account-expense-date").value;
+    const category = document.getElementById("account-expense-category").value;
+    const desc = document.getElementById("account-expense-comment").value.trim();
+    const account = getAccountById(accountId);
+
+    if (!account) {
+      showToast(t("error_select_account"), "error");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      showToast(t("error_invalid_amount"), "error");
+      return;
+    }
+
+    try {
+      await createTransaction(supabase, state.user.id, {
+        type: "expense",
+        accountId,
+        amount,
+        date,
+        category,
+        desc,
+        currencyCode: account.currencyCode
+      });
+      await hydrateWorkspace();
+      closeModal("account-expense-modal");
+      showToast(t("toast_account_expense_saved"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
 function openGoalModal(goalId = "") {
   const form = document.getElementById("goal-form");
   form.reset();
   document.getElementById("goal-icon").value = "🎯";
   document.getElementById("goal-edit-id").value = goalId;
   document.getElementById("goal-modal-title").textContent = goalId ? t("modal_edit_goal") : t("modal_new_goal");
+  populateSimpleOptions("goal-currency", SUPPORTED_CURRENCIES.map((currency) => ({ value: currency, label: currency })));
 
   if (goalId) {
     const goal = state.goals.find((item) => item.id === goalId);
     if (goal) {
       document.getElementById("goal-name").value = goal.name;
       document.getElementById("goal-target").value = goal.target;
-      document.getElementById("goal-saved").value = goal.saved;
       document.getElementById("goal-icon").value = goal.icon || "🎯";
       document.getElementById("goal-deadline").value = goal.deadline || "";
+      document.getElementById("goal-currency").value = goal.currencyCode;
     }
+  } else {
+    document.getElementById("goal-currency").value = state.currency;
   }
 
+  syncGoalAccountOptions(goalId ? state.goals.find((item) => item.id === goalId)?.savingsAccountId || "" : "");
   openModal("goal-modal");
+}
+
+function syncGoalAccountOptions(selectedAccountId = "") {
+  const currencyCode = document.getElementById("goal-currency").value;
+  const savingsAccounts = getSavingsAccounts().filter((account) => account.currencyCode === currencyCode);
+  const existingGoalId = document.getElementById("goal-edit-id").value;
+
+  const options = [{ value: "", label: t("goal_no_account") }]
+    .concat(savingsAccounts.map((account) => ({ value: account.id, label: `${account.name} (${account.currencyCode})` })));
+
+  populateSimpleOptions("goal-account", options);
+
+  if (selectedAccountId && savingsAccounts.some((account) => account.id === selectedAccountId)) {
+    document.getElementById("goal-account").value = selectedAccountId;
+    return;
+  }
+
+  if (existingGoalId) {
+    const goal = state.goals.find((item) => item.id === existingGoalId);
+    if (goal?.savingsAccountId && savingsAccounts.some((account) => account.id === goal.savingsAccountId)) {
+      document.getElementById("goal-account").value = goal.savingsAccountId;
+    }
+  }
 }
 
 async function handleGoalSubmit(event) {
   event.preventDefault();
 
-  const name = document.getElementById("goal-name").value.trim();
-  const target = Number.parseFloat(document.getElementById("goal-target").value);
-  const saved = Number.parseFloat(document.getElementById("goal-saved").value) || 0;
-  const icon = document.getElementById("goal-icon").value || "🎯";
-  const deadline = document.getElementById("goal-deadline").value;
-  const editId = document.getElementById("goal-edit-id").value;
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const goalId = document.getElementById("goal-edit-id").value;
+    const existingGoal = state.goals.find((item) => item.id === goalId);
+    const name = document.getElementById("goal-name").value.trim();
+    const target = Number.parseFloat(document.getElementById("goal-target").value);
+    const icon = document.getElementById("goal-icon").value || "🎯";
+    const deadline = document.getElementById("goal-deadline").value;
+    const currencyCode = document.getElementById("goal-currency").value;
+    const savingsAccountId = document.getElementById("goal-account").value;
+    const linkedAccount = savingsAccountId ? getAccountById(savingsAccountId) : null;
+    const saved = existingGoal?.saved || 0;
 
-  if (!name) {
-    showToast(t("error_enter_goal_name"), "error");
-    return;
-  }
+    if (!name) {
+      showToast(t("error_enter_goal_name"), "error");
+      return;
+    }
 
-  if (!target || target <= 0) {
-    showToast(t("error_enter_goal_target"), "error");
-    return;
-  }
+    if (!target || target <= 0) {
+      showToast(t("error_enter_goal_target"), "error");
+      return;
+    }
 
-  try {
-    await saveGoal(supabase, state.user.id, { id: editId || undefined, name, target, saved, icon, deadline });
-    await hydrateWorkspace();
-    closeModal("goal-modal");
-    showToast(editId ? t("toast_goal_updated") : t("toast_goal_added"));
-  } catch (error) {
-    showToast(error.message, "error");
-  }
+    if (linkedAccount && linkedAccount.currencyCode !== currencyCode) {
+      showToast(t("error_goal_currency_account_mismatch"), "error");
+      return;
+    }
+
+    const computedSaved = linkedAccount ? getAccountBalance(linkedAccount.id) : saved;
+    const status = existingGoal?.status === "spent" || existingGoal?.status === "cancelled"
+      ? existingGoal.status
+      : computedSaved >= target ? "reached" : "active";
+
+    try {
+      await saveGoal(supabase, state.user.id, {
+        id: goalId || undefined,
+        name,
+        target,
+        saved,
+        icon,
+        deadline,
+        currencyCode,
+        savingsAccountId,
+        status,
+        completedAt: status === "spent" ? existingGoal?.completedAt || new Date().toISOString() : null
+      });
+      await hydrateWorkspace();
+      closeModal("goal-modal");
+      showToast(goalId ? t("toast_goal_updated") : t("toast_goal_added"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
 }
 
 async function deleteGoal(goalId) {
-  if (!window.confirm(t("confirm_delete_goal"))) {
+  if (!await confirmAction(t("confirm_delete_goal"), t("action_delete"))) {
     return;
   }
 
   try {
     await deleteGoalById(supabase, state.user.id, goalId);
     await hydrateWorkspace();
-    renderGoals();
     showToast(t("toast_goal_deleted"), "info");
   } catch (error) {
     showToast(error.message, "error");
   }
+}
+
+function openGoalSpendModal(goalId) {
+  const goal = state.goals.find((item) => item.id === goalId);
+  if (!goal?.savingsAccountId) {
+    showToast(t("error_goal_requires_account"), "error");
+    return;
+  }
+
+  const account = getAccountById(goal.savingsAccountId);
+  if (!account) {
+    showToast(t("error_select_account"), "error");
+    return;
+  }
+
+  document.getElementById("goal-spend-form").reset();
+  document.getElementById("goal-spend-goal-id").value = goal.id;
+  populateAccountSelect("goal-spend-account", [account], account.id);
+  document.getElementById("goal-spend-balance").value = formatMoney(getAccountBalance(account.id), account.currencyCode);
+  populateSimpleOptions("goal-spend-category", EXPENSE_CATEGORIES.map((category) => ({ value: category, label: t(`category_${category}`) })));
+  document.getElementById("goal-spend-date").value = new Date().toISOString().split("T")[0];
+  openModal("goal-spend-modal");
+}
+
+async function handleGoalSpendSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const goalId = document.getElementById("goal-spend-goal-id").value;
+    const goal = state.goals.find((item) => item.id === goalId);
+    const account = goal?.savingsAccountId ? getAccountById(goal.savingsAccountId) : null;
+    const amount = Number.parseFloat(document.getElementById("goal-spend-amount").value);
+    const date = document.getElementById("goal-spend-date").value;
+    const category = document.getElementById("goal-spend-category").value;
+    const desc = document.getElementById("goal-spend-comment").value.trim();
+    const markCompleted = document.getElementById("goal-spend-complete").checked;
+
+    if (!goal || !account) {
+      showToast(t("error_goal_requires_account"), "error");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      showToast(t("error_invalid_amount"), "error");
+      return;
+    }
+
+    try {
+      await createTransaction(supabase, state.user.id, {
+        type: "expense",
+        accountId: account.id,
+        amount,
+        date,
+        category,
+        desc,
+        currencyCode: account.currencyCode,
+        goalId: goal.id
+      });
+
+      if (markCompleted) {
+        await saveGoal(supabase, state.user.id, {
+          ...goal,
+          status: "spent",
+          completedAt: new Date().toISOString()
+        });
+      }
+
+      await hydrateWorkspace();
+      closeModal("goal-spend-modal");
+      showToast(t("toast_goal_spend_saved"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
 }
 
 async function handleExport() {
@@ -501,7 +916,7 @@ async function handleImport(event) {
 }
 
 async function handleLogout() {
-  if (!window.confirm(t("confirm_logout"))) {
+  if (!await confirmAction(t("confirm_logout"), t("logout"))) {
     return;
   }
 
@@ -609,6 +1024,8 @@ function toggleMenu(menuId) {
 function runAction(action, dataset) {
   if (action === "edit-transaction") {
     editTransaction(dataset.id);
+  } else if (action === "edit-budget") {
+    editBudget(dataset.category);
   } else if (action === "delete-transaction") {
     deleteTransaction(dataset.id);
   } else if (action === "delete-budget") {
@@ -617,6 +1034,19 @@ function runAction(action, dataset) {
     openGoalModal(dataset.id);
   } else if (action === "delete-goal") {
     deleteGoal(dataset.id);
+  } else if (action === "fund-account") {
+    openTransferModal(dataset.id);
+  } else if (action === "withdraw-account") {
+    openAccountExpenseModal(dataset.id);
+  } else if (action === "view-account-history") {
+    state.activeAccountId = dataset.id;
+    renderCurrentPage();
+  } else if (action === "edit-account") {
+    openAccountModal(dataset.id);
+  } else if (action === "delete-account") {
+    deleteAccount(dataset.id);
+  } else if (action === "spend-goal") {
+    openGoalSpendModal(dataset.id);
   }
 }
 
@@ -628,6 +1058,10 @@ function showAuth() {
 function showApp() {
   document.getElementById("auth-shell").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
+}
+
+function finishBoot() {
+  document.body.classList.remove("app-booting");
 }
 
 function disableAuth(message) {
@@ -643,7 +1077,17 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+  if (id === "confirm-modal" && confirmResolver) {
+    resolveConfirm(false);
+    return;
+  }
+
   document.getElementById(id).classList.remove("open");
+}
+
+function handleConfirmSubmit(event) {
+  event.preventDefault();
+  resolveConfirm(true);
 }
 
 function bindThemeMedia() {
@@ -673,25 +1117,98 @@ function closeSidebarOnMobile() {
   }
 }
 
-function downloadJson(payload, fileName) {
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = fileName;
-  link.click();
-}
-
 function readJsonFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = ({ target }) => {
+    reader.onload = () => {
       try {
-        resolve(JSON.parse(target.result));
-      } catch (error) {
-        reject(error);
+        resolve(JSON.parse(reader.result));
+      } catch {
+        reject(new Error(t("error_read_file")));
       }
     };
     reader.onerror = () => reject(new Error(t("error_read_file")));
     reader.readAsText(file);
   });
+}
+
+function downloadJson(payload, filename) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function populateAccountSelect(selectId, accounts, selectedValue = "", includeEmpty = false) {
+  const select = document.getElementById(selectId);
+  const options = [];
+
+  if (includeEmpty) {
+    options.push(`<option value="">${t("goal_no_account")}</option>`);
+  }
+
+  options.push(
+    ...accounts.map((account) => `<option value="${account.id}">${account.name} (${account.currencyCode})</option>`)
+  );
+
+  select.innerHTML = options.join("");
+  if (selectedValue) {
+    select.value = selectedValue;
+  }
+}
+
+function populateSimpleOptions(selectId, options) {
+  document.getElementById(selectId).innerHTML = options
+    .map((option) => `<option value="${option.value}">${option.label}</option>`)
+    .join("");
+}
+
+function getDefaultRegularAccountId() {
+  return state.accounts.find((account) => account.type === "regular" && account.currencyCode === state.currency)?.id
+    || state.accounts.find((account) => account.type === "regular")?.id
+    || state.accounts[0]?.id
+    || "";
+}
+
+async function runWithSubmitLock(form, callback) {
+  if (form.dataset.submitting === "true") {
+    return;
+  }
+
+  form.dataset.submitting = "true";
+  const submitButton = form.querySelector("[type='submit']");
+  if (submitButton) {
+    submitButton.disabled = true;
+  }
+
+  try {
+    await callback();
+  } finally {
+    form.dataset.submitting = "false";
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  }
+}
+
+function confirmAction(message, actionLabel) {
+  document.getElementById("confirm-message").textContent = message;
+  document.getElementById("confirm-action-button").textContent = actionLabel;
+  openModal("confirm-modal");
+
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+  });
+}
+
+function resolveConfirm(result) {
+  const resolver = confirmResolver;
+  confirmResolver = null;
+  document.getElementById("confirm-modal").classList.remove("open");
+  if (resolver) {
+    resolver(result);
+  }
 }

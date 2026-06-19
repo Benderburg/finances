@@ -13,7 +13,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
   <script type="module" src="./assets/js/app.js"></script>
 </head>
-<body>
+<body class="app-booting">
+  <div class="boot-loader" id="boot-loader" aria-live="polite" aria-label="Loading">
+    <div class="boot-loader-card">
+      <div class="boot-loader-brand">Norocel</div>
+      <div class="boot-loader-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
   <div class="auth-shell" id="auth-shell">
     <section class="auth-panel">
       <div class="auth-brand">
@@ -78,6 +85,10 @@
         <button class="nav-item" type="button" data-page="budget">
           <span class="icon">🎯</span>
           <span data-i18n="nav_budget">Buget</span>
+        </button>
+        <button class="nav-item" type="button" data-page="savings">
+          <span class="icon">🏦</span>
+          <span data-i18n="nav_savings">Economii</span>
         </button>
         <button class="nav-item" type="button" data-page="goals">
           <span class="icon">🏆</span>
@@ -238,7 +249,7 @@
           </article>
         </div>
 
-        <article class="card">
+        <article class="card mt-20">
           <div class="card-header">
             <div class="card-title" data-i18n="card_budget_by_category">Buget pe categorii</div>
           </div>
@@ -256,6 +267,42 @@
         </div>
 
         <div class="goals-grid" id="goals-grid"></div>
+      </section>
+
+      <section class="page" id="page-savings">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_savings">Economii</div>
+            <div class="page-subtitle" data-i18n="subtitle_savings">Conturi, transferuri și bani puși deoparte</div>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary" id="open-transfer-button" type="button" data-i18n="btn_transfer">Transfer / schimb</button>
+            <button class="btn btn-primary" id="add-account-button" type="button" data-i18n="btn_add_account">+ Cont</button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <article class="stat-card blue">
+            <div class="stat-label" data-i18n="stat_total_saved">Total economii</div>
+            <div class="stat-value blue" id="savings-total-balance">0</div>
+            <div class="stat-change" id="savings-total-caption"></div>
+          </article>
+          <article class="stat-card yellow">
+            <div class="stat-label" data-i18n="stat_total_accounts">Conturi</div>
+            <div class="stat-value yellow" id="savings-total-accounts">0</div>
+            <div class="stat-change" id="savings-total-types"></div>
+          </article>
+        </div>
+
+        <div class="savings-grid" id="savings-grid"></div>
+
+        <article class="card mt-20">
+          <div class="card-header">
+            <div class="card-title" data-i18n="card_account_history">Istoric cont</div>
+            <div class="card-meta" id="account-history-title"></div>
+          </div>
+          <div id="account-history"></div>
+        </article>
       </section>
 
       <section class="page" id="page-reports">
@@ -394,6 +441,11 @@
           <select class="form-select" id="tx-category"></select>
         </div>
 
+        <div class="form-group">
+          <label class="form-label" for="tx-account" data-i18n="field_account">Cont</label>
+          <select class="form-select" id="tx-account"></select>
+        </div>
+
         <div class="form-actions">
           <button class="btn btn-secondary" type="button" data-close-modal="add-modal" data-i18n="cancel">Anulează</button>
           <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
@@ -410,6 +462,7 @@
       </div>
 
       <form id="budget-form">
+        <input type="hidden" id="budget-edit-category">
         <div class="form-group">
           <label class="form-label" for="budget-cat" data-i18n="field_category">Categorie</label>
           <select class="form-select" id="budget-cat"></select>
@@ -447,8 +500,8 @@
             <input type="number" class="form-input" id="goal-target" data-i18n-placeholder="placeholder_goal_target" placeholder="100000" min="0">
           </div>
           <div class="form-group">
-            <label class="form-label" for="goal-saved" data-i18n="field_goal_saved">Economisit</label>
-            <input type="number" class="form-input" id="goal-saved" data-i18n-placeholder="placeholder_goal_saved" placeholder="0" min="0">
+            <label class="form-label" for="goal-currency" data-i18n="field_goal_currency">Monedă obiectiv</label>
+            <select class="form-select" id="goal-currency"></select>
           </div>
         </div>
 
@@ -463,9 +516,233 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label class="form-label" for="goal-account" data-i18n="field_goal_account">Cont de economii</label>
+          <select class="form-select" id="goal-account"></select>
+        </div>
+
         <div class="form-actions">
           <button class="btn btn-secondary" type="button" data-close-modal="goal-modal" data-i18n="cancel">Anulează</button>
           <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="account-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="account-modal-title">Cont nou</div>
+        <button class="modal-close" type="button" data-close-modal="account-modal">✕</button>
+      </div>
+
+      <form id="account-form">
+        <input type="hidden" id="account-edit-id">
+
+        <div class="form-group">
+          <label class="form-label" for="account-name" data-i18n="field_account_name">Denumire cont</label>
+          <input type="text" class="form-input" id="account-name" data-i18n-placeholder="placeholder_account_name" placeholder="De exemplu: Vacanță">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="account-type" data-i18n="account_type">Tip cont</label>
+            <select class="form-select" id="account-type"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="account-currency" data-i18n="field_currency_code">Monedă</label>
+            <select class="form-select" id="account-currency"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="account-opening-balance" data-i18n="account_opening_balance">Sold inițial</label>
+            <input type="number" class="form-input" id="account-opening-balance" min="0" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group checkbox-group">
+            <label class="checkbox-inline">
+              <input type="checkbox" id="account-include-total" checked>
+              <span data-i18n="account_include_total">Include în total</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary danger-btn hidden" id="account-delete-button" type="button" data-i18n="action_delete">Șterge</button>
+          <button class="btn btn-secondary" type="button" data-close-modal="account-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="transfer-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="modal_transfer">Transfer / schimb</div>
+        <button class="modal-close" type="button" data-close-modal="transfer-modal">✕</button>
+      </div>
+
+      <form id="transfer-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="transfer-from-account" data-i18n="field_from_account">Cont sursă</label>
+            <select class="form-select" id="transfer-from-account"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="transfer-to-account" data-i18n="field_to_account">Cont destinație</label>
+            <select class="form-select" id="transfer-to-account"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="transfer-amount-out" data-i18n="field_amount_out">Sumă retrasă</label>
+            <input type="number" class="form-input" id="transfer-amount-out" min="0" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="transfer-amount-in" data-i18n="field_amount_in">Sumă primită</label>
+            <input type="number" class="form-input" id="transfer-amount-in" min="0" step="0.01" placeholder="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="transfer-date" data-i18n="field_date">Dată</label>
+            <input type="date" class="form-input" id="transfer-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="transfer-rate" data-i18n="transfer_rate">Curs efectiv</label>
+            <input type="number" class="form-input" id="transfer-rate" min="0" step="0.000001" placeholder="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="transfer-comment" data-i18n="field_comment">Comentariu</label>
+          <input type="text" class="form-input" id="transfer-comment" data-i18n-placeholder="placeholder_comment" placeholder="Detalii opționale">
+        </div>
+
+        <div class="settings-note" data-i18n="transfer_same_currency_hint">Pentru aceeași monedă sumele trebuie să fie egale.</div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="transfer-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="account-expense-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="modal_account_expense">Retragere din cont</div>
+        <button class="modal-close" type="button" data-close-modal="account-expense-modal">✕</button>
+      </div>
+
+      <form id="account-expense-form">
+        <div class="form-group">
+          <label class="form-label" for="account-expense-account" data-i18n="field_account">Cont</label>
+          <select class="form-select" id="account-expense-account"></select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="account-expense-amount" data-i18n="field_amount">Sumă</label>
+            <input type="number" class="form-input" id="account-expense-amount" min="0" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="account-expense-date" data-i18n="field_date">Dată</label>
+            <input type="date" class="form-input" id="account-expense-date">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="account-expense-category" data-i18n="field_category">Categorie</label>
+          <select class="form-select" id="account-expense-category"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="account-expense-comment" data-i18n="field_comment">Comentariu</label>
+          <input type="text" class="form-input" id="account-expense-comment" data-i18n-placeholder="placeholder_comment" placeholder="Detalii opționale">
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="account-expense-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="goal-spend-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="modal_goal_spend">Cheltuie pe obiectiv</div>
+        <button class="modal-close" type="button" data-close-modal="goal-spend-modal">✕</button>
+      </div>
+
+      <form id="goal-spend-form">
+        <input type="hidden" id="goal-spend-goal-id">
+
+        <div class="form-group">
+          <label class="form-label" for="goal-spend-account" data-i18n="field_account">Cont</label>
+          <select class="form-select" id="goal-spend-account" disabled></select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="goal-spend-balance" data-i18n="field_available_balance">Sold disponibil</label>
+            <input type="text" class="form-input" id="goal-spend-balance" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="goal-spend-amount" data-i18n="field_goal_spent_amount">Sumă cheltuită</label>
+            <input type="number" class="form-input" id="goal-spend-amount" min="0" step="0.01" placeholder="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="goal-spend-date" data-i18n="field_date">Dată</label>
+            <input type="date" class="form-input" id="goal-spend-date">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="goal-spend-category" data-i18n="field_category">Categorie</label>
+            <select class="form-select" id="goal-spend-category"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="goal-spend-comment" data-i18n="field_comment">Comentariu</label>
+          <input type="text" class="form-input" id="goal-spend-comment" data-i18n-placeholder="placeholder_comment" placeholder="Detalii opționale">
+        </div>
+
+        <label class="checkbox-inline">
+          <input type="checkbox" id="goal-spend-complete">
+          <span data-i18n="field_mark_goal_spent">Marchează obiectivul ca realizat și cheltuit</span>
+        </label>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="goal-spend-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="confirm_title">Confirmare</div>
+        <button class="modal-close" type="button" data-close-modal="confirm-modal">✕</button>
+      </div>
+
+      <form id="confirm-form">
+        <p class="settings-note" id="confirm-message"></p>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="confirm-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-secondary danger-btn" id="confirm-action-button" type="submit">Confirm</button>
         </div>
       </form>
     </div>

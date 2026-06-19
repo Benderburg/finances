@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_TYPES,
   CAT_COLORS,
   CAT_ICONS,
   DEFAULT_LANGUAGE,
@@ -10,7 +11,17 @@ import {
   SUPPORTED_THEMES,
   TRANSLATIONS
 } from "./config.js";
-import { getMonthTransactions, state, sumTransactions } from "./store.js";
+import {
+  getAccountBalance,
+  getAccountById,
+  getGoalProgress,
+  getGoalSavedAmount,
+  getGoalSpentAmount,
+  getMonthTransactions,
+  getSavingsAccounts,
+  state,
+  sumTransactions
+} from "./store.js";
 
 const charts = {};
 const LANGUAGE_FLAGS = {
@@ -42,6 +53,29 @@ function resolveColor(color) {
   return match ? getThemeColor(match[1]) : color;
 }
 
+function formatCompactDate(value) {
+  return new Date(value).toLocaleDateString(getLocale(), {
+    day: "numeric",
+    month: "short"
+  });
+}
+
+function getAccountName(accountId) {
+  return getAccountById(accountId)?.name || t("field_account");
+}
+
+function getAccountTypeLabel(type) {
+  return t(type === "savings" ? "account_savings" : "account_regular");
+}
+
+function getGoalStatusLabel(status) {
+  return t(`goal_status_${status || "active"}`);
+}
+
+function getGoalById(goalId) {
+  return state.goals.find((goal) => goal.id === goalId) || null;
+}
+
 export function t(key) {
   return TRANSLATIONS[state.language]?.[key] || TRANSLATIONS[DEFAULT_LANGUAGE]?.[key] || key;
 }
@@ -51,10 +85,14 @@ export function getLocale() {
 }
 
 export function formatCurrency(value) {
+  return formatMoney(value, state.currency);
+}
+
+export function formatMoney(value, currencyCode) {
   return new Intl.NumberFormat(getLocale(), {
     style: "currency",
-    currency: state.currency,
-    maximumFractionDigits: 0
+    currency: currencyCode || state.currency,
+    maximumFractionDigits: 2
   }).format(value || 0);
 }
 
@@ -188,6 +226,8 @@ export function renderCurrentPage() {
     renderTransactions();
   } else if (state.currentPage === "budget") {
     renderBudget();
+  } else if (state.currentPage === "savings") {
+    renderSavings();
   } else if (state.currentPage === "goals") {
     renderGoals();
   } else if (state.currentPage === "reports") {
@@ -231,6 +271,7 @@ export function renderDashboard() {
 
 export function renderTransactions() {
   const filtered = state.transactions
+    .filter((transaction) => transaction.type === "income" || transaction.type === "expense")
     .filter((transaction) => state.filter === "all" || transaction.type === state.filter)
     .sort((left, right) => new Date(right.date) - new Date(left.date));
 
@@ -280,6 +321,7 @@ export function renderBudget() {
           <div class="budget-item-name">${CAT_ICONS[category] || "📦"} ${getCategoryLabel(category)}</div>
           <div style="display:flex;gap:8px;align-items:center">
             <div class="budget-item-amounts"><span>${formatCurrency(spent)}</span> / ${formatCurrency(limit)}</div>
+            <button class="tx-btn" type="button" data-action="edit-budget" data-category="${category}" title="${t("action_edit")}">✏️</button>
             <button class="tx-btn del" type="button" data-action="delete-budget" data-category="${category}" title="${t("action_delete")}">🗑️</button>
           </div>
         </div>
@@ -294,6 +336,80 @@ export function renderBudget() {
   }).join("");
 }
 
+export function renderSavings() {
+  const savingsAccounts = getSavingsAccounts();
+  const historyAccountId = state.activeAccountId || savingsAccounts[0]?.id || state.accounts[0]?.id || "";
+  const historyTransactions = state.transactions
+    .filter((transaction) => (
+      transaction.accountId === historyAccountId
+      || transaction.fromAccountId === historyAccountId
+      || transaction.toAccountId === historyAccountId
+    ))
+    .sort((left, right) => new Date(right.date) - new Date(left.date));
+  const totalIncludedAccounts = state.accounts.filter((account) => account.includeInTotal);
+  const balancesByCurrency = totalIncludedAccounts.reduce((accumulator, account) => {
+    accumulator[account.currencyCode] = (accumulator[account.currencyCode] || 0) + getAccountBalance(account.id);
+    return accumulator;
+  }, {});
+
+  document.getElementById("savings-total-balance").textContent = Object.entries(balancesByCurrency)
+    .map(([currencyCode, amount]) => formatMoney(amount, currencyCode))
+    .join(" • ") || formatCurrency(0);
+  document.getElementById("savings-total-caption").textContent = totalIncludedAccounts.length
+    ? t("account_include_total")
+    : "";
+  document.getElementById("savings-total-accounts").textContent = String(state.accounts.length);
+  document.getElementById("savings-total-types").textContent = `${state.accounts.filter((account) => account.type === "regular").length} ${t("account_regular")} • ${savingsAccounts.length} ${t("account_savings")}`;
+
+  const grid = document.getElementById("savings-grid");
+  if (!savingsAccounts.length) {
+    grid.innerHTML = getEmptyState("🏦", t("no_accounts_title"), t("no_accounts_body"));
+  } else {
+    grid.innerHTML = savingsAccounts.map((account) => {
+      const balance = getAccountBalance(account.id);
+      const linkedGoal = state.goals.find((goal) => goal.savingsAccountId === account.id);
+      const progress = linkedGoal ? getGoalProgress(linkedGoal) : null;
+
+      return `
+        <article class="goal-card savings-card${historyAccountId === account.id ? " active" : ""}">
+          <div class="goal-header">
+            <div>
+              <div class="goal-name">${account.name}</div>
+              <div class="goal-amounts">${getAccountTypeLabel(account.type)} • ${account.currencyCode}</div>
+            </div>
+            <div class="goal-percent">${formatMoney(balance, account.currencyCode)}</div>
+          </div>
+          ${linkedGoal ? `
+            <div class="savings-linked-goal">
+              <strong>${t("account_linked_goal")}:</strong> ${linkedGoal.name}
+              <span>${formatMoney(getGoalSavedAmount(linkedGoal), linkedGoal.currencyCode)} / ${formatMoney(linkedGoal.target, linkedGoal.currencyCode)}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:${progress}%;background:${getThemeColor("--accent-2")}"></div>
+            </div>
+          ` : ""}
+          <div class="savings-actions">
+            <button class="btn btn-secondary btn-sm" type="button" data-action="fund-account" data-id="${account.id}">${t("btn_top_up")}</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="withdraw-account" data-id="${account.id}">${t("btn_withdraw")}</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="view-account-history" data-id="${account.id}">${t("btn_history")}</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-action="edit-account" data-id="${account.id}">${t("action_edit")}</button>
+            <button class="btn btn-secondary btn-sm danger-btn" type="button" data-action="delete-account" data-id="${account.id}">${t("action_delete")}</button>
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  document.getElementById("account-history-title").textContent = historyAccountId ? getAccountName(historyAccountId) : "";
+  const historyContainer = document.getElementById("account-history");
+  if (!historyTransactions.length) {
+    historyContainer.innerHTML = getEmptyState("🧾", t("no_transactions_title"), t("no_recent_transactions_body"));
+    return;
+  }
+
+  historyContainer.innerHTML = historyTransactions.map((transaction) => getTransactionMarkup(transaction)).join("");
+}
+
 export function renderGoals() {
   const container = document.getElementById("goals-grid");
 
@@ -303,10 +419,13 @@ export function renderGoals() {
   }
 
   container.innerHTML = state.goals.map((goal) => {
-    const percent = Math.min(100, Math.round((goal.saved / goal.target) * 100));
-    const remaining = Math.max(0, goal.target - goal.saved);
+    const saved = getGoalSavedAmount(goal);
+    const spent = getGoalSpentAmount(goal.id);
+    const percent = getGoalProgress(goal);
+    const remaining = Math.max(0, goal.target - saved);
     const color = percent >= 100 ? getThemeColor("--income") : percent >= 60 ? getThemeColor("--accent-4") : getThemeColor("--accent-2");
     const deadline = getDeadlineMarkup(goal.deadline);
+    const linkedAccount = goal.savingsAccountId ? getAccountById(goal.savingsAccountId) : null;
 
     return `
       <article class="goal-card">
@@ -314,7 +433,7 @@ export function renderGoals() {
           <div>
             <div style="font-size:32px">${goal.icon || "🎯"}</div>
             <div class="goal-name">${goal.name}</div>
-            <div class="goal-amounts"><strong>${formatCurrency(goal.saved)}</strong> / ${formatCurrency(goal.target)}</div>
+            <div class="goal-amounts"><strong>${formatMoney(saved, goal.currencyCode)}</strong> / ${formatMoney(goal.target, goal.currencyCode)}</div>
           </div>
           <div>
             <div class="goal-percent">${percent}%</div>
@@ -327,8 +446,18 @@ export function renderGoals() {
         <div class="progress-bar">
           <div class="progress-fill" style="width:${percent}%;background:${color}"></div>
         </div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">${t("goal_remaining")}: <strong style="color:var(--text)">${formatCurrency(remaining)}</strong></div>
+        <div class="goal-meta-list">
+          <div>${t("goal_saved")}: <strong>${formatMoney(saved, goal.currencyCode)}</strong></div>
+          <div>${t("goal_spent")}: <strong>${formatMoney(spent, goal.currencyCode)}</strong></div>
+          <div>${t("goal_remaining")}: <strong>${formatMoney(remaining, goal.currencyCode)}</strong></div>
+          <div>${t("field_goal_status")}: <strong>${getGoalStatusLabel(goal.status)}</strong></div>
+          <div>${t("field_goal_account")}: <strong>${linkedAccount ? `${linkedAccount.name} (${linkedAccount.currencyCode})` : t("goal_no_account")}</strong></div>
+          ${linkedAccount ? `<div>${t("goal_account_balance")}: <strong>${formatMoney(getAccountBalance(linkedAccount.id), linkedAccount.currencyCode)}</strong></div>` : ""}
+        </div>
         ${deadline}
+        <div class="savings-actions mt-20">
+          ${goal.savingsAccountId ? `<button class="btn btn-primary btn-sm" type="button" data-action="spend-goal" data-id="${goal.id}">${t("btn_spend_goal")}</button>` : ""}
+        </div>
       </article>
     `;
   }).join("");
@@ -493,7 +622,7 @@ function renderMonthlyChart() {
 }
 
 function renderExpensePieChart() {
-  const expenses = state.transactions.filter((transaction) => transaction.type === "expense");
+  const expenses = state.transactions.filter((transaction) => transaction.type === "expense" && transaction.currencyCode === state.currency);
   const grouped = {};
   expenses.forEach((transaction) => {
     grouped[transaction.category] = (grouped[transaction.category] || 0) + transaction.amount;
@@ -531,7 +660,9 @@ function renderExpensePieChart() {
 }
 
 function renderBalanceChart() {
-  const sorted = [...state.transactions].sort((left, right) => new Date(left.date) - new Date(right.date));
+  const sorted = [...state.transactions]
+    .filter((transaction) => (transaction.type === "income" || transaction.type === "expense") && transaction.currencyCode === state.currency)
+    .sort((left, right) => new Date(left.date) - new Date(right.date));
   const labels = [];
   const balances = [];
   let balance = 0;
@@ -574,7 +705,7 @@ function renderBalanceChart() {
 function renderTopCategories() {
   const grouped = {};
   state.transactions
-    .filter((transaction) => transaction.type === "expense")
+    .filter((transaction) => transaction.type === "expense" && transaction.currencyCode === state.currency)
     .forEach((transaction) => {
       grouped[transaction.category] = (grouped[transaction.category] || 0) + transaction.amount;
     });
@@ -605,8 +736,33 @@ function renderTopCategories() {
 }
 
 function getTransactionMarkup(transaction, withActions = false) {
+  const goal = transaction.goalId ? getGoalById(transaction.goalId) : null;
+
+  if (transaction.type === "transfer" || transaction.type === "exchange") {
+    const icon = transaction.type === "exchange" ? "💱" : "🔁";
+    const source = getAccountName(transaction.fromAccountId);
+    const target = getAccountName(transaction.toAccountId);
+
+    return `
+      <div class="transaction-item">
+        <div class="tx-icon" style="background:${getThemeColor("--surface-tint")};color:${getThemeColor("--accent-2")}">${icon}</div>
+        <div class="tx-info">
+          <div class="tx-name">${source} → ${target}</div>
+          <div class="tx-date">${formatDate(transaction.date)}</div>
+          <span class="tx-category">${t(transaction.type === "exchange" ? "transaction_exchange" : "transaction_transfer")}</span>
+        </div>
+        <div class="tx-amount blue">${formatMoney(transaction.amount, transaction.currencyCode)} → ${formatMoney(transaction.convertedAmount, transaction.convertedCurrencyCode)}</div>
+        ${withActions ? `
+          <div class="tx-actions">
+            <button class="tx-btn del" type="button" data-action="delete-transaction" data-id="${transaction.id}">🗑️</button>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }
+
   const color = resolveColor(CAT_COLORS[transaction.category]) || getThemeColor("--accent-2");
-  const icon = CAT_ICONS[transaction.category] || "💳";
+  const icon = CAT_ICONS[transaction.category] || (transaction.type === "income" ? "💼" : "💳");
   const sign = transaction.type === "income" ? "+" : "-";
 
   return `
@@ -615,9 +771,9 @@ function getTransactionMarkup(transaction, withActions = false) {
       <div class="tx-info">
         <div class="tx-name">${transaction.desc || getCategoryLabel(transaction.category)}</div>
         <div class="tx-date">${formatDate(transaction.date)}</div>
-        <span class="tx-category">${getCategoryLabel(transaction.category)}</span>
+        <span class="tx-category">${getCategoryLabel(transaction.category)} • ${getAccountName(transaction.accountId)}${goal ? ` • ${goal.name}` : ""}</span>
       </div>
-      <div class="tx-amount ${transaction.type}">${sign}${formatCurrency(transaction.amount)}</div>
+      <div class="tx-amount ${transaction.type}">${sign}${formatMoney(transaction.amount, transaction.currencyCode)}</div>
       ${withActions ? `
         <div class="tx-actions">
           <button class="tx-btn" type="button" data-action="edit-transaction" data-id="${transaction.id}">✏️</button>
