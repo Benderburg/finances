@@ -1,7 +1,9 @@
 export const DEFAULT_LANGUAGE = "ro";
 export const DEFAULT_CURRENCY = "MDL";
+export const DEFAULT_THEME = "system";
 export const SUPPORTED_LANGUAGES = ["ro", "ru", "en"];
 export const SUPPORTED_CURRENCIES = ["MDL", "EUR", "USD"];
+export const SUPPORTED_THEMES = ["light", "dark", "system"];
 
 export const LOCALE_BY_LANGUAGE = {
   ro: "ro-MD",
@@ -13,20 +15,20 @@ export const INCOME_CATEGORIES = ["salary", "freelance", "investments", "gifts",
 export const EXPENSE_CATEGORIES = ["food", "transport", "housing", "entertainment", "shopping", "health", "education", "utilities", "other_expense"];
 
 export const CAT_COLORS = {
-  salary: "#72f2c0",
-  freelance: "#9af7ca",
-  investments: "#34d399",
-  gifts: "#b8ffe2",
-  other_income: "#72f2c0",
-  food: "#ff7f96",
-  transport: "#f97316",
-  housing: "#7ca8ff",
-  entertainment: "#ffd166",
-  shopping: "#e879f9",
-  health: "#38bdf8",
-  education: "#a78bfa",
-  utilities: "#94a3b8",
-  other_expense: "#64748b"
+  salary: "var(--cat-salary)",
+  freelance: "var(--cat-freelance)",
+  investments: "var(--cat-investments)",
+  gifts: "var(--cat-gifts)",
+  other_income: "var(--cat-other-income)",
+  food: "var(--cat-food)",
+  transport: "var(--cat-transport)",
+  housing: "var(--cat-housing)",
+  entertainment: "var(--cat-entertainment)",
+  shopping: "var(--cat-shopping)",
+  health: "var(--cat-health)",
+  education: "var(--cat-education)",
+  utilities: "var(--cat-utilities)",
+  other_expense: "var(--cat-other-expense)"
 };
 
 export const CAT_ICONS = {
@@ -146,6 +148,10 @@ export const TRANSLATIONS = {
     quick_income: "Venit",
     topbar_language: "Limbă",
     topbar_currency: "Monedă",
+    topbar_theme: "Temă",
+    theme_light: "Luminoasă",
+    theme_dark: "Întunecată",
+    theme_system: "Ca în sistem",
     settings_title: "Setări",
     page_dashboard: "Panou",
     page_transactions: "Tranzacții",
@@ -310,6 +316,10 @@ export const TRANSLATIONS = {
     quick_income: "Доход",
     topbar_language: "Язык",
     topbar_currency: "Валюта",
+    topbar_theme: "Тема",
+    theme_light: "Светлая",
+    theme_dark: "Тёмная",
+    theme_system: "Как в системе",
     settings_title: "Настройки",
     page_dashboard: "Дашборд",
     page_transactions: "Транзакции",
@@ -474,6 +484,10 @@ export const TRANSLATIONS = {
     quick_income: "Income",
     topbar_language: "Language",
     topbar_currency: "Currency",
+    topbar_theme: "Theme",
+    theme_light: "Light",
+    theme_dark: "Dark",
+    theme_system: "System",
     settings_title: "Settings",
     page_dashboard: "Dashboard",
     page_transactions: "Transactions",

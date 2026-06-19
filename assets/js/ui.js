@@ -7,6 +7,7 @@ import {
   LOCALE_BY_LANGUAGE,
   SUPPORTED_CURRENCIES,
   SUPPORTED_LANGUAGES,
+  SUPPORTED_THEMES,
   TRANSLATIONS
 } from "./config.js";
 import { getMonthTransactions, state, sumTransactions } from "./store.js";
@@ -22,6 +23,24 @@ const CURRENCY_SIGNS = {
   EUR: "€",
   USD: "$"
 };
+const THEME_ICONS = {
+  light: "☀",
+  dark: "☾",
+  system: "◐"
+};
+
+function getThemeColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function resolveColor(color) {
+  if (!color?.startsWith("var(")) {
+    return color;
+  }
+
+  const match = color.match(/var\((--[^)]+)\)/);
+  return match ? getThemeColor(match[1]) : color;
+}
 
 export function t(key) {
   return TRANSLATIONS[state.language]?.[key] || TRANSLATIONS[DEFAULT_LANGUAGE]?.[key] || key;
@@ -84,8 +103,10 @@ export function renderStaticTexts() {
 export function renderPreferenceSelectors() {
   const languagePopover = document.getElementById("language-popover");
   const currencyPopover = document.getElementById("currency-popover");
+  const themePopover = document.getElementById("theme-popover");
   const languageButton = document.getElementById("language-button");
   const currencyButton = document.getElementById("currency-button");
+  const themeButton = document.getElementById("theme-button");
 
   languagePopover.innerHTML = SUPPORTED_LANGUAGES
     .map((language) => `<button class="round-option${language === state.language ? " active" : ""}" type="button" data-language-option="${language}" title="${t(`language_${language}`)}">${LANGUAGE_FLAGS[language] || language.toUpperCase()}</button>`)
@@ -93,11 +114,16 @@ export function renderPreferenceSelectors() {
   currencyPopover.innerHTML = SUPPORTED_CURRENCIES
     .map((currency) => `<button class="round-option${currency === state.currency ? " active" : ""}" type="button" data-currency-option="${currency}" title="${t(`currency_${currency}`)}">${CURRENCY_SIGNS[currency] || currency}</button>`)
     .join("");
+  themePopover.innerHTML = SUPPORTED_THEMES
+    .map((theme) => `<button class="round-option${theme === state.theme ? " active" : ""}" type="button" data-theme-option="${theme}" title="${t(`theme_${theme}`)}">${THEME_ICONS[theme] || "◐"}</button>`)
+    .join("");
 
   languageButton.textContent = LANGUAGE_FLAGS[state.language] || state.language.toUpperCase();
   currencyButton.textContent = CURRENCY_SIGNS[state.currency] || state.currency;
+  themeButton.textContent = THEME_ICONS[state.theme] || "◐";
   languagePopover.classList.toggle("open", state.openMenu === "language-popover");
   currencyPopover.classList.toggle("open", state.openMenu === "currency-popover");
+  themePopover.classList.toggle("open", state.openMenu === "theme-popover");
 }
 
 export function updateMonthLabel() {
@@ -246,7 +272,7 @@ export function renderBudget() {
     const limit = state.budgets[category];
     const spent = spentByCategory[category] || 0;
     const percent = Math.min(100, Math.round((spent / limit) * 100));
-    const color = percent >= 100 ? "#ff7f96" : percent >= 80 ? "#ffd166" : "#72f2c0";
+    const color = percent >= 100 ? getThemeColor("--expense") : percent >= 80 ? getThemeColor("--accent-4") : getThemeColor("--income");
 
     return `
       <div class="budget-item">
@@ -279,7 +305,7 @@ export function renderGoals() {
   container.innerHTML = state.goals.map((goal) => {
     const percent = Math.min(100, Math.round((goal.saved / goal.target) * 100));
     const remaining = Math.max(0, goal.target - goal.saved);
-    const color = percent >= 100 ? "#72f2c0" : percent >= 60 ? "#ffd166" : "#7ca8ff";
+    const color = percent >= 100 ? getThemeColor("--income") : percent >= 60 ? getThemeColor("--accent-4") : getThemeColor("--accent-2");
     const deadline = getDeadlineMarkup(goal.deadline);
 
     return `
@@ -346,7 +372,7 @@ function renderAvatar(element, name, avatarUrl, keepGear = false) {
   }
 
   const initial = (name || t("user_fallback")).slice(0, 1).toUpperCase();
-  element.style.backgroundImage = avatarUrl ? `linear-gradient(rgba(11, 16, 22, 0.16), rgba(11, 16, 22, 0.16)), url("${avatarUrl}")` : "";
+  element.style.backgroundImage = avatarUrl ? `linear-gradient(var(--avatar-image-tint), var(--avatar-image-tint)), url("${avatarUrl}")` : "";
   element.style.backgroundSize = avatarUrl ? "cover" : "";
   element.style.backgroundPosition = avatarUrl ? "center" : "";
   element.textContent = avatarUrl ? "" : initial;
@@ -381,8 +407,8 @@ function renderDashChart(transactions) {
     data: {
       labels,
       datasets: [
-        { label: t("btn_income"), data: incomes, backgroundColor: "rgba(114, 242, 192, 0.72)", borderRadius: 4 },
-        { label: t("btn_expense"), data: expenses, backgroundColor: "rgba(255, 127, 150, 0.72)", borderRadius: 4 }
+        { label: t("btn_income"), data: incomes, backgroundColor: getThemeColor("--chart-income"), borderRadius: 4 },
+        { label: t("btn_expense"), data: expenses, backgroundColor: getThemeColor("--chart-expense"), borderRadius: 4 }
       ]
     },
     options: getChartOptions()
@@ -412,8 +438,8 @@ function renderCategoryChart(transactions) {
       labels: categories.map(getCategoryLabel),
       datasets: [{
         data: categories.map((category) => grouped[category]),
-        backgroundColor: categories.map((category) => CAT_COLORS[category] || "#7ca8ff"),
-        borderColor: "#171d28",
+        backgroundColor: categories.map((category) => resolveColor(CAT_COLORS[category]) || getThemeColor("--accent-2")),
+        borderColor: getThemeColor("--chart-surface-border"),
         borderWidth: 2
       }]
     },
@@ -424,7 +450,7 @@ function renderCategoryChart(transactions) {
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: "#8f9ab0", font: { size: 11 }, boxWidth: 12, padding: 10 }
+          labels: { color: getThemeColor("--chart-label"), font: { size: 11 }, boxWidth: 12, padding: 10 }
         }
       }
     }
@@ -458,8 +484,8 @@ function renderMonthlyChart() {
     data: {
       labels,
       datasets: [
-        { label: t("btn_income"), data: incomes, backgroundColor: "rgba(114, 242, 192, 0.72)", borderRadius: 6 },
-        { label: t("btn_expense"), data: expenses, backgroundColor: "rgba(255, 127, 150, 0.72)", borderRadius: 6 }
+        { label: t("btn_income"), data: incomes, backgroundColor: getThemeColor("--chart-income"), borderRadius: 6 },
+        { label: t("btn_expense"), data: expenses, backgroundColor: getThemeColor("--chart-expense"), borderRadius: 6 }
       ]
     },
     options: getChartOptions()
@@ -486,8 +512,8 @@ function renderExpensePieChart() {
       labels: categories.map(getCategoryLabel),
       datasets: [{
         data: categories.map((category) => grouped[category]),
-        backgroundColor: categories.map((category) => CAT_COLORS[category] || "#7ca8ff"),
-        borderColor: "#171d28",
+        backgroundColor: categories.map((category) => resolveColor(CAT_COLORS[category]) || getThemeColor("--accent-2")),
+        borderColor: getThemeColor("--chart-surface-border"),
         borderWidth: 2
       }]
     },
@@ -497,7 +523,7 @@ function renderExpensePieChart() {
       plugins: {
         legend: {
           position: "bottom",
-          labels: { color: "#8f9ab0", font: { size: 11 }, boxWidth: 12 }
+          labels: { color: getThemeColor("--chart-label"), font: { size: 11 }, boxWidth: 12 }
         }
       }
     }
@@ -528,12 +554,12 @@ function renderBalanceChart() {
       datasets: [{
         label: t("stat_balance"),
         data: balances,
-        borderColor: "#7ca8ff",
-        backgroundColor: "rgba(124, 168, 255, 0.12)",
+        borderColor: getThemeColor("--chart-line"),
+        backgroundColor: getThemeColor("--chart-line-fill"),
         fill: true,
         tension: 0.35,
         pointRadius: 3,
-        pointBackgroundColor: "#7ca8ff"
+        pointBackgroundColor: getThemeColor("--chart-line")
       }]
     },
     options: {
@@ -571,7 +597,7 @@ function renderTopCategories() {
           <span style="font-weight:600">${formatCurrency(amount)} <span style="color:var(--text-muted);font-weight:400;font-size:12px">(${percent}%)</span></span>
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" style="width:${percent}%;background:${CAT_COLORS[category] || "#7ca8ff"}"></div>
+          <div class="progress-fill" style="width:${percent}%;background:${resolveColor(CAT_COLORS[category]) || getThemeColor("--accent-2")}"></div>
         </div>
       </div>
     `;
@@ -579,7 +605,7 @@ function renderTopCategories() {
 }
 
 function getTransactionMarkup(transaction, withActions = false) {
-  const color = CAT_COLORS[transaction.category] || "#7ca8ff";
+  const color = resolveColor(CAT_COLORS[transaction.category]) || getThemeColor("--accent-2");
   const icon = CAT_ICONS[transaction.category] || "💳";
   const sign = transaction.type === "income" ? "+" : "-";
 
@@ -634,7 +660,7 @@ function getChartOptions() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        labels: { color: "#8f9ab0", font: { size: 12 } }
+        labels: { color: getThemeColor("--chart-label"), font: { size: 12 } }
       }
     },
     scales: getChartScales()
@@ -644,12 +670,12 @@ function getChartOptions() {
 function getChartScales() {
   return {
     x: {
-      grid: { color: "rgba(124, 144, 178, 0.16)" },
-      ticks: { color: "#8f9ab0", font: { size: 11 }, maxTicksLimit: 10 }
+      grid: { color: getThemeColor("--chart-grid") },
+      ticks: { color: getThemeColor("--chart-label"), font: { size: 11 }, maxTicksLimit: 10 }
     },
     y: {
-      grid: { color: "rgba(124, 144, 178, 0.16)" },
-      ticks: { color: "#8f9ab0", font: { size: 11 }, callback: (value) => formatCurrency(value) }
+      grid: { color: getThemeColor("--chart-grid") },
+      ticks: { color: getThemeColor("--chart-label"), font: { size: 11 }, callback: (value) => formatCurrency(value) }
     }
   };
 }

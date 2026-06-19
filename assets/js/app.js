@@ -41,6 +41,8 @@ let supabase;
 window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  applyTheme(state.theme);
+  bindThemeMedia();
   renderStaticTexts();
 
   if (!isSupabaseConfigured()) {
@@ -135,6 +137,12 @@ function handleDocumentClick(event) {
   const currencyOption = event.target.closest("[data-currency-option]");
   if (currencyOption) {
     handleCurrencyChange(currencyOption.dataset.currencyOption);
+    return;
+  }
+
+  const themeOption = event.target.closest("[data-theme-option]");
+  if (themeOption) {
+    handleThemeChange(themeOption.dataset.themeOption);
     return;
   }
 
@@ -528,6 +536,16 @@ async function handleCurrencyChange(currency) {
   }
 }
 
+function handleThemeChange(theme) {
+  state.theme = theme;
+  state.openMenu = null;
+  applyTheme(theme);
+  persistTheme();
+  renderPreferenceSelectors();
+  renderUserHeader();
+  renderCurrentPage();
+}
+
 async function persistPreferences() {
   try {
     await updateProfilePreferences(supabase, state.user.id, {
@@ -536,6 +554,14 @@ async function persistPreferences() {
     });
   } catch (error) {
     showToast(error.message, "error");
+  }
+}
+
+function persistTheme() {
+  try {
+    window.localStorage.setItem("norocel-theme", state.theme);
+  } catch {
+    // Ignore storage failures and keep the current in-memory theme.
   }
 }
 
@@ -569,7 +595,7 @@ function handleAvatarPreview() {
   const name = document.getElementById("settings-name").value.trim() || state.profile?.full_name || state.user?.email || t("user_fallback");
   const avatarUrl = document.getElementById("settings-avatar").value.trim();
 
-  avatar.style.backgroundImage = avatarUrl ? `linear-gradient(rgba(11, 16, 22, 0.16), rgba(11, 16, 22, 0.16)), url("${avatarUrl}")` : "";
+  avatar.style.backgroundImage = avatarUrl ? `linear-gradient(var(--avatar-image-tint), var(--avatar-image-tint)), url("${avatarUrl}")` : "";
   avatar.style.backgroundSize = avatarUrl ? "cover" : "";
   avatar.style.backgroundPosition = avatarUrl ? "center" : "";
   avatar.textContent = avatarUrl ? "" : name.slice(0, 1).toUpperCase();
@@ -618,6 +644,27 @@ function openModal(id) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove("open");
+}
+
+function bindThemeMedia() {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", () => {
+    if (state.theme === "system") {
+      applyTheme("system");
+      renderUserHeader();
+      renderCurrentPage();
+      renderPreferenceSelectors();
+    }
+  });
+}
+
+function applyTheme(theme) {
+  const resolvedTheme = theme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : theme;
+
+  document.documentElement.dataset.theme = resolvedTheme;
+  document.documentElement.dataset.themePreference = theme;
 }
 
 function closeSidebarOnMobile() {

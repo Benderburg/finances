@@ -1,4 +1,17 @@
-import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE } from "./config.js";
+import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME } from "./config.js";
+
+function loadStoredTheme() {
+  if (typeof window === "undefined") {
+    return DEFAULT_THEME;
+  }
+
+  try {
+    const theme = window.localStorage.getItem("norocel-theme");
+    return theme || DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
 
 export const state = {
   user: null,
@@ -11,6 +24,7 @@ export const state = {
   authMode: "signin",
   language: DEFAULT_LANGUAGE,
   currency: DEFAULT_CURRENCY,
+  theme: loadStoredTheme(),
   transactions: [],
   budgets: {},
   goals: []
