@@ -25,9 +25,14 @@
     <section class="auth-panel">
       <div class="auth-brand">
         <div>
-          <p class="auth-kicker" data-i18n="auth_kicker">Norocel x Supabase</p>
+          <div class="auth-language-switch" aria-label="Language">
+            <button class="auth-language-option active" type="button" data-language-option="ro">RO</button>
+            <button class="auth-language-option" type="button" data-language-option="ru">RU</button>
+            <button class="auth-language-option" type="button" data-language-option="en">EN</button>
+          </div>
+          <p class="auth-kicker" data-i18n="auth_kicker">Norocel</p>
           <h1 class="auth-title" data-i18n="auth_title">Intrare în cabinetul tău financiar din Republica Moldova.</h1>
-          <p class="auth-copy" data-i18n="auth_copy">Autentificarea, profilul și datele aplicației sunt păstrate în Supabase. Norocel pornește implicit cu lei moldovenești și interfață în română.</p>
+          <p class="auth-copy" data-i18n="auth_copy">Ține veniturile, cheltuielile, economiile și obiectivele într-un singur loc. Norocel pornește implicit cu lei moldovenești și interfață în română.</p>
         </div>
       </div>
 
@@ -38,7 +43,7 @@
           <button class="auth-tab" type="button" data-auth-mode="reset" data-i18n="auth_tab_reset">Resetare</button>
         </div>
 
-        <div class="setup-note" id="setup-note" data-i18n="auth_setup_note">Completează `assets/js/supabase-config.js` și rulează SQL-ul din `supabase/schema.sql`.</div>
+        <div class="auth-message hidden" id="auth-message"></div>
 
         <form id="auth-form">
           <div class="form-group auth-only-signup hidden" id="auth-name-group">
@@ -59,7 +64,7 @@
           <button class="btn btn-primary auth-submit" id="auth-submit" type="submit" data-i18n="submit_signin">Intră</button>
         </form>
 
-        <p class="auth-helper" id="auth-helper" data-i18n="auth_helper_signin">Folosește emailul și parola din Supabase Auth.</p>
+        <p class="auth-helper" id="auth-helper" data-i18n="auth_helper_signin">Folosește emailul și parola contului tău.</p>
       </div>
     </section>
   </div>

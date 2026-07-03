@@ -162,6 +162,13 @@ export function renderPreferenceSelectors() {
   languagePopover.classList.toggle("open", state.openMenu === "language-popover");
   currencyPopover.classList.toggle("open", state.openMenu === "currency-popover");
   themePopover.classList.toggle("open", state.openMenu === "theme-popover");
+
+  document.querySelectorAll("[data-language-option]").forEach((button) => {
+    const language = button.dataset.languageOption;
+    button.classList.toggle("active", language === state.language);
+    button.title = t(`language_${language}`);
+    button.setAttribute("aria-pressed", String(language === state.language));
+  });
 }
 
 export function updateMonthLabel() {

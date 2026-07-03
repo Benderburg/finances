@@ -108,7 +108,6 @@ async function applySession(session) {
     state.transactions = [];
     state.budgets = {};
     state.goals = [];
-    state.language = DEFAULT_LANGUAGE;
     state.currency = DEFAULT_CURRENCY;
     state.currentPage = "dashboard";
     state.activeAccountId = "";
@@ -121,7 +120,10 @@ async function applySession(session) {
   state.user = session.user;
 
   try {
-    await saveProfile(supabase, session.user);
+    await saveProfile(supabase, session.user, {
+      language: state.language,
+      currency: state.currency
+    });
     await hydrateWorkspace();
     showApp();
   } catch (error) {
@@ -325,7 +327,7 @@ async function handleAuthSubmit(event) {
     }
 
     if (state.authMode === "signup") {
-      await signUp(supabase, email, password, fullName);
+      await signUp(supabase, email, password, fullName, state.language);
       showToast(t("toast_signup_success"));
       return;
     }
@@ -931,6 +933,7 @@ async function handleLogout() {
 async function handleLanguageChange(language) {
   state.language = language;
   state.openMenu = null;
+  persistLanguage();
   renderStaticTexts();
   renderUserHeader();
   renderCurrentPage();
@@ -977,6 +980,14 @@ function persistTheme() {
     window.localStorage.setItem("norocel-theme", state.theme);
   } catch {
     // Ignore storage failures and keep the current in-memory theme.
+  }
+}
+
+function persistLanguage() {
+  try {
+    window.localStorage.setItem("norocel-language", state.language);
+  } catch {
+    // Ignore storage failures and keep the current in-memory language.
   }
 }
 
@@ -1065,7 +1076,9 @@ function finishBoot() {
 }
 
 function disableAuth(message) {
-  document.getElementById("setup-note").textContent = message;
+  const authMessage = document.getElementById("auth-message");
+  authMessage.textContent = message;
+  authMessage.classList.remove("hidden");
   document.getElementById("auth-submit").disabled = true;
   document.getElementById("auth-email").disabled = true;
   document.getElementById("auth-password").disabled = true;

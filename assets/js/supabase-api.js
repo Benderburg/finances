@@ -7,13 +7,14 @@ export async function signIn(supabase, email, password) {
   }
 }
 
-export async function signUp(supabase, email, password, fullName) {
+export async function signUp(supabase, email, password, fullName, language) {
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
-        full_name: fullName || null
+        full_name: fullName || null,
+        language: language || null
       }
     }
   });
@@ -40,15 +41,44 @@ export async function sendPasswordReset(supabase, email) {
   }
 }
 
-export async function saveProfile(supabase, user) {
+export async function saveProfile(supabase, user, preferences = {}) {
+  const currentProfile = await supabase
+    .from("profiles")
+    .select("language,currency")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (currentProfile.error) {
+    throw currentProfile.error;
+  }
+
   const payload = {
     id: user.id,
     email: user.email,
     full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
     avatar_url: user.user_metadata?.avatar_url || null
   };
+  const preferredLanguage = preferences.language || user.user_metadata?.language;
+  const preferredCurrency = preferences.currency || user.user_metadata?.currency;
 
-  const { error } = await supabase.from("profiles").upsert(payload);
+  if (!currentProfile.data) {
+    payload.language = preferredLanguage;
+    payload.currency = preferredCurrency;
+  } else {
+    if (!currentProfile.data.language && preferredLanguage) {
+      payload.language = preferredLanguage;
+    }
+
+    if (!currentProfile.data.currency && preferredCurrency) {
+      payload.currency = preferredCurrency;
+    }
+  }
+
+  const query = currentProfile.data
+    ? supabase.from("profiles").update(payload).eq("id", user.id)
+    : supabase.from("profiles").insert(payload);
+
+  const { error } = await query;
   if (error) {
     throw error;
   }

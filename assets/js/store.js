@@ -1,4 +1,17 @@
-import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME } from "./config.js";
+import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME, SUPPORTED_LANGUAGES } from "./config.js";
+
+function loadStoredLanguage() {
+  if (typeof window === "undefined") {
+    return DEFAULT_LANGUAGE;
+  }
+
+  try {
+    const language = window.localStorage.getItem("norocel-language");
+    return SUPPORTED_LANGUAGES.includes(language) ? language : DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
+}
 
 function loadStoredTheme() {
   if (typeof window === "undefined") {
@@ -22,7 +35,7 @@ export const state = {
   currentYear: new Date().getFullYear(),
   filter: "all",
   authMode: "signin",
-  language: DEFAULT_LANGUAGE,
+  language: loadStoredLanguage(),
   currency: DEFAULT_CURRENCY,
   theme: loadStoredTheme(),
   accounts: [],

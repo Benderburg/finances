@@ -131,6 +131,35 @@ button {
     linear-gradient(320deg, var(--auth-brand-overlay-end), var(--auth-brand-overlay-base) 50%);
 }
 
+.auth-language-switch {
+  display: inline-flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+}
+
+.auth-language-option {
+  min-width: 42px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.auth-language-option:hover,
+.auth-language-option.active {
+  background: var(--accent-soft-hover);
+  color: var(--text);
+}
+
 .auth-card {
   padding: 28px;
 }
@@ -216,7 +245,7 @@ button {
   border-color: var(--accent-border);
 }
 
-.setup-note {
+.auth-message {
   margin-bottom: 18px;
   padding: 14px 16px;
   border-radius: 14px;
