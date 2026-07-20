@@ -1,5 +1,5 @@
-import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME, SUPPORTED_LANGUAGES } from "./config.js?v=20260713-3";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, normalizeCategory } from "./i18n.js?v=20260713-3";
+import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME, SUPPORTED_LANGUAGES } from "./config.js?v=20260720-2";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, normalizeCategory } from "./i18n.js?v=20260720-2";
 
 function loadStoredLanguage() {
   if (typeof window === "undefined") {
@@ -163,13 +163,28 @@ export function getGoalSpentAmount(goalId) {
     .reduce((total, transaction) => total + transaction.amount, 0);
 }
 
+export function getGoalFundedAmount(goal) {
+  return getGoalSavedAmount(goal) + getGoalSpentAmount(goal.id);
+}
+
 export function getGoalProgress(goal) {
-  const saved = getGoalSavedAmount(goal);
   if (!goal.target) {
     return 0;
   }
 
-  return Math.min(100, Math.round((saved / goal.target) * 100));
+  return Math.min(100, Math.round((getGoalFundedAmount(goal) / goal.target) * 100));
+}
+
+export function getGoalComputedStatus(goal) {
+  if (goal.status === "cancelled" || goal.status === "spent") {
+    return goal.status;
+  }
+
+  if (getGoalSpentAmount(goal.id) >= goal.target) {
+    return "spent";
+  }
+
+  return getGoalFundedAmount(goal) >= goal.target ? "reached" : "active";
 }
 
 export function getOpenLiabilities() {

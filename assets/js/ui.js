@@ -4,18 +4,20 @@ import {
   SUPPORTED_CURRENCIES,
   SUPPORTED_LANGUAGES,
   SUPPORTED_THEMES
-} from "./config.js?v=20260713-3";
+} from "./config.js?v=20260720-2";
 import {
   CAT_COLORS,
   CAT_ICONS,
   LOCALE_BY_LANGUAGE,
   TRANSLATIONS
-} from "./i18n.js?v=20260713-3";
+} from "./i18n.js?v=20260720-2";
 import {
   getAccountBalance,
   getAccountById,
   getCategories,
   getCategoryByKey,
+  getGoalComputedStatus,
+  getGoalFundedAmount,
   getGoalProgress,
   getGoalSavedAmount,
   getGoalSpentAmount,
@@ -24,7 +26,7 @@ import {
   getSavingsAccounts,
   state,
   sumTransactions
-} from "./store.js?v=20260713-3";
+} from "./store.js?v=20260720-2";
 
 const charts = {};
 const LANGUAGE_FLAGS = {
@@ -87,6 +89,10 @@ function getGoalById(goalId) {
   return state.goals.find((goal) => goal.id === goalId) || null;
 }
 
+function getTransactionCategoryKey(transaction) {
+  return transaction.goalId ? "goal_expense" : transaction.category;
+}
+
 export function t(key) {
   return TRANSLATIONS[state.language]?.[key] || TRANSLATIONS[DEFAULT_LANGUAGE]?.[key] || key;
 }
@@ -116,6 +122,10 @@ export function formatDate(value) {
 }
 
 export function getCategoryLabel(categoryKey) {
+  if (categoryKey === "goal_expense") {
+    return t("category_goal_expense");
+  }
+
   const category = getCategoryByKey(categoryKey);
   if (!category) {
     return categoryKey || t("field_category");
@@ -279,6 +289,7 @@ function renderSettingsCategories() {
 export function renderCurrentPage() {
   renderNavigation();
   document.querySelector(".hero").classList.toggle("hidden", state.currentPage === "settings" || state.isAdminMode);
+  renderHeroActions();
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("active", page.id === `page-${state.currentPage}`);
   });
@@ -304,6 +315,37 @@ export function renderCurrentPage() {
   } else if (state.currentPage === "settings") {
     renderSettingsPage();
   }
+}
+
+function renderHeroActions() {
+  const contextualActions = {
+    budget: [{ id: "add-budget-button", className: "btn-primary", label: "btn_add_category" }],
+    savings: [
+      { id: "open-transfer-button", className: "btn-secondary", icon: "↔", label: "btn_transfer" },
+      { id: "add-account-button", className: "btn-primary", label: "btn_add_account" }
+    ],
+    goals: [{ id: "add-goal-button", className: "btn-primary", label: "btn_add_goal" }],
+    liabilities: [{ id: "add-liability-button", className: "btn-primary", label: "btn_add_liability" }],
+    reports: [{ id: "print-reports-button", className: "btn-secondary", icon: "🖨️", label: "btn_print" }]
+  };
+  const actions = contextualActions[state.currentPage] || [];
+
+  document.getElementById("hero-actions").innerHTML = `
+    ${actions.map((action) => `
+      <button class="btn ${action.className}" id="${action.id}" type="button">
+        ${action.icon ? `<span class="btn-action-icon" aria-hidden="true">${action.icon}</span>` : ""}
+        <span>${t(action.label)}</span>
+      </button>
+    `).join("")}
+    <button class="btn btn-expense-action" id="quick-expense" type="button">
+      <span class="btn-action-icon" aria-hidden="true">💳</span>
+      <span>${t("quick_expense")}</span>
+    </button>
+    <button class="btn btn-primary" id="quick-income" type="button">
+      <span class="btn-action-icon" aria-hidden="true">💼</span>
+      <span>${t("quick_income")}</span>
+    </button>
+  `;
 }
 
 export function renderNavigation() {
@@ -416,7 +458,7 @@ export function renderBudget() {
   const spentByCategory = {};
 
   transactions
-    .filter((transaction) => transaction.type === "expense")
+    .filter((transaction) => transaction.type === "expense" && !transaction.goalId)
     .forEach((transaction) => {
       spentByCategory[transaction.category] = (spentByCategory[transaction.category] || 0) + transaction.amount;
     });
@@ -507,7 +549,7 @@ export function renderSavings() {
           ${linkedGoal ? `
             <div class="savings-linked-goal">
               <strong>${t("account_linked_goal")}:</strong> ${linkedGoal.name}
-              <span>${formatMoney(getGoalSavedAmount(linkedGoal), linkedGoal.currencyCode)} / ${formatMoney(linkedGoal.target, linkedGoal.currencyCode)}</span>
+              <span>${formatMoney(getGoalFundedAmount(linkedGoal), linkedGoal.currencyCode)} / ${formatMoney(linkedGoal.target, linkedGoal.currencyCode)}</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" style="width:${progress}%;background:${getThemeColor("--accent-2")}"></div>
@@ -544,10 +586,11 @@ export function renderGoals() {
   }
 
   container.innerHTML = state.goals.map((goal) => {
-    const saved = getGoalSavedAmount(goal);
     const spent = getGoalSpentAmount(goal.id);
+    const funded = getGoalFundedAmount(goal);
     const percent = getGoalProgress(goal);
-    const remaining = Math.max(0, goal.target - saved);
+    const remaining = Math.max(0, goal.target - funded);
+    const status = getGoalComputedStatus(goal);
     const color = percent >= 100 ? getThemeColor("--income") : percent >= 60 ? getThemeColor("--accent-4") : getThemeColor("--accent-2");
     const deadline = getDeadlineMarkup(goal.deadline);
     const linkedAccount = goal.savingsAccountId ? getAccountById(goal.savingsAccountId) : null;
@@ -558,7 +601,7 @@ export function renderGoals() {
           <div>
             <div style="font-size:32px">${goal.icon || "🎯"}</div>
             <div class="goal-name">${goal.name}</div>
-            <div class="goal-amounts"><strong>${formatMoney(saved, goal.currencyCode)}</strong> / ${formatMoney(goal.target, goal.currencyCode)}</div>
+            <div class="goal-amounts">${t("goal_funded")}: <strong>${formatMoney(funded, goal.currencyCode)}</strong> / ${formatMoney(goal.target, goal.currencyCode)}</div>
           </div>
           <div>
             <div class="goal-percent">${percent}%</div>
@@ -572,16 +615,15 @@ export function renderGoals() {
           <div class="progress-fill" style="width:${percent}%;background:${color}"></div>
         </div>
         <div class="goal-meta-list">
-          <div>${t("goal_saved")}: <strong>${formatMoney(saved, goal.currencyCode)}</strong></div>
           <div>${t("goal_spent")}: <strong>${formatMoney(spent, goal.currencyCode)}</strong></div>
           <div>${t("goal_remaining")}: <strong>${formatMoney(remaining, goal.currencyCode)}</strong></div>
-          <div>${t("field_goal_status")}: <strong>${getGoalStatusLabel(goal.status)}</strong></div>
+          <div>${t("field_goal_status")}: <strong>${getGoalStatusLabel(status)}</strong></div>
           <div>${t("field_goal_account")}: <strong>${linkedAccount ? `${linkedAccount.name} (${linkedAccount.currencyCode})` : t("goal_no_account")}</strong></div>
           ${linkedAccount ? `<div>${t("goal_account_balance")}: <strong>${formatMoney(getAccountBalance(linkedAccount.id), linkedAccount.currencyCode)}</strong></div>` : ""}
         </div>
         ${deadline}
         <div class="savings-actions mt-20">
-          ${goal.savingsAccountId ? `<button class="btn btn-primary btn-sm" type="button" data-action="spend-goal" data-id="${goal.id}">${t("btn_spend_goal")}</button>` : ""}
+          ${goal.savingsAccountId && status !== "spent" && status !== "cancelled" ? `<button class="btn btn-primary btn-sm" type="button" data-action="spend-goal" data-id="${goal.id}">${t("btn_spend_goal")}</button>` : ""}
         </div>
       </article>
     `;
@@ -759,7 +801,8 @@ function renderCategoryChart(transactions) {
   const grouped = {};
 
   expenses.forEach((transaction) => {
-    grouped[transaction.category] = (grouped[transaction.category] || 0) + transaction.amount;
+    const category = getTransactionCategoryKey(transaction);
+    grouped[category] = (grouped[category] || 0) + transaction.amount;
   });
 
   const categories = Object.keys(grouped);
@@ -835,7 +878,8 @@ function renderExpensePieChart() {
   const expenses = state.transactions.filter((transaction) => transaction.type === "expense" && transaction.currencyCode === state.currency);
   const grouped = {};
   expenses.forEach((transaction) => {
-    grouped[transaction.category] = (grouped[transaction.category] || 0) + transaction.amount;
+    const category = getTransactionCategoryKey(transaction);
+    grouped[category] = (grouped[category] || 0) + transaction.amount;
   });
 
   const categories = Object.keys(grouped).sort((left, right) => grouped[right] - grouped[left]);
@@ -917,7 +961,8 @@ function renderTopCategories() {
   state.transactions
     .filter((transaction) => transaction.type === "expense" && transaction.currencyCode === state.currency)
     .forEach((transaction) => {
-      grouped[transaction.category] = (grouped[transaction.category] || 0) + transaction.amount;
+      const category = getTransactionCategoryKey(transaction);
+      grouped[category] = (grouped[category] || 0) + transaction.amount;
     });
 
   const total = Object.values(grouped).reduce((sum, value) => sum + value, 0);
@@ -971,22 +1016,23 @@ function getTransactionMarkup(transaction, withActions = false) {
     `;
   }
 
-  const color = resolveColor(CAT_COLORS[transaction.category]) || getThemeColor("--accent-2");
-  const icon = CAT_ICONS[transaction.category] || (transaction.type === "income" ? "💼" : "💳");
+  const category = getTransactionCategoryKey(transaction);
+  const color = resolveColor(CAT_COLORS[category]) || getThemeColor("--accent-2");
+  const icon = CAT_ICONS[category] || (transaction.type === "income" ? "💼" : "💳");
   const sign = transaction.type === "income" ? "+" : "-";
 
   return `
     <div class="transaction-item">
       <div class="tx-icon" style="background:${color}22;color:${color}">${icon}</div>
       <div class="tx-info">
-        <div class="tx-name">${transaction.desc || getCategoryLabel(transaction.category)}</div>
+        <div class="tx-name">${transaction.desc || getCategoryLabel(category)}</div>
         <div class="tx-date">${formatDate(transaction.date)}</div>
-        <span class="tx-category">${getCategoryLabel(transaction.category)} • ${getAccountName(transaction.accountId)}${goal ? ` • ${goal.name}` : ""}</span>
+        <span class="tx-category">${getCategoryLabel(category)} • ${getAccountName(transaction.accountId)}${goal ? ` • ${goal.name}` : ""}</span>
       </div>
       <div class="tx-amount ${transaction.type}">${sign}${formatMoney(transaction.amount, transaction.currencyCode)}</div>
       ${withActions ? `
         <div class="tx-actions">
-          <button class="tx-btn" type="button" data-action="edit-transaction" data-id="${transaction.id}">✏️</button>
+          ${goal ? "" : `<button class="tx-btn" type="button" data-action="edit-transaction" data-id="${transaction.id}">✏️</button>`}
           <button class="tx-btn del" type="button" data-action="delete-transaction" data-id="${transaction.id}">🗑️</button>
         </div>
       ` : ""}

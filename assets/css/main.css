@@ -595,6 +595,8 @@ button {
 
 .hero-actions {
   gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
   justify-content: flex-start;
 }
 
@@ -1435,5 +1437,30 @@ button {
   .auth-brand,
   .auth-card {
     padding: 24px;
+  }
+}
+
+@media print {
+  .sidebar,
+  .mob-toggle,
+  .hero {
+    display: none !important;
+  }
+
+  .main {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .page-header {
+    break-after: avoid;
+  }
+
+  .card,
+  .stat-card {
+    break-inside: avoid;
+    box-shadow: none;
   }
 }

@@ -1,4 +1,4 @@
-import { normalizeCategory } from "./i18n.js?v=20260713-3";
+import { normalizeCategory } from "./i18n.js?v=20260720-2";
 
 export async function signIn(supabase, email, password) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });

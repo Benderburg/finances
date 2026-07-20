@@ -4,18 +4,21 @@ import {
   DEFAULT_LANGUAGE,
   LIABILITY_TYPES,
   SUPPORTED_CURRENCIES
-} from "./config.js?v=20260713-3";
+} from "./config.js?v=20260720-2";
 import {
   state,
   getAccountBalance,
   getAccountById,
   getCategories,
   getCategoryByKey,
+  getGoalComputedStatus,
+  getGoalFundedAmount,
   getGoalProgress,
   getGoalSavedAmount,
+  getGoalSpentAmount,
   getSavingsAccounts
-} from "./store.js?v=20260713-3";
-import { createSupabaseClient, isSupabaseConfigured } from "./supabase.js?v=20260713-3";
+} from "./store.js?v=20260720-2";
+import { createSupabaseClient, isSupabaseConfigured } from "./supabase.js?v=20260720-2";
 import {
   createTransaction,
   deleteAccountById,
@@ -44,7 +47,7 @@ import {
   updateAdminUser,
   updateProfilePreferences,
   updateUserProfile
-} from "./supabase-api.js?v=20260713-3";
+} from "./supabase-api.js?v=20260720-2";
 import {
   formatMoney,
   getCategoryLabel,
@@ -57,7 +60,7 @@ import {
   showToast,
   t,
   updateMonthLabel
-} from "./ui.js?v=20260713-3";
+} from "./ui.js?v=20260720-2";
 
 let supabase;
 let confirmResolver = null;
@@ -266,42 +269,44 @@ function handleDocumentClick(event) {
     return;
   }
 
-  if (event.target.id === "prev-month") {
+  const clickedButtonId = event.target.closest("button")?.id;
+
+  if (clickedButtonId === "prev-month") {
     changeMonth(-1);
     return;
   }
 
-  if (event.target.id === "next-month") {
+  if (clickedButtonId === "next-month") {
     changeMonth(1);
     return;
   }
 
-  if (event.target.id === "sidebar-toggle") {
+  if (clickedButtonId === "sidebar-toggle") {
     document.getElementById("sidebar").classList.toggle("open");
     return;
   }
 
-  if (event.target.id === "add-transaction-button" || event.target.id === "quick-income") {
+  if (clickedButtonId === "quick-income") {
     openTransactionModal("income");
     return;
   }
 
-  if (event.target.id === "quick-expense") {
+  if (clickedButtonId === "quick-expense") {
     openTransactionModal("expense");
     return;
   }
 
-  if (event.target.id === "add-budget-button") {
+  if (clickedButtonId === "add-budget-button") {
     openBudgetModal();
     return;
   }
 
-  if (event.target.id === "settings-add-category") {
+  if (clickedButtonId === "settings-add-category") {
     openCategoryModal({ type: "expense" });
     return;
   }
 
-  if (event.target.id === "category-delete-button") {
+  if (clickedButtonId === "category-delete-button") {
     const categoryId = document.getElementById("category-edit-id").value;
     if (categoryId) {
       closeModal("category-modal");
@@ -310,26 +315,26 @@ function handleDocumentClick(event) {
     return;
   }
 
-  if (event.target.id === "admin-user-delete-button") {
+  if (clickedButtonId === "admin-user-delete-button") {
     return;
   }
 
-  if (event.target.id === "add-goal-button") {
+  if (clickedButtonId === "add-goal-button") {
     openGoalModal();
     return;
   }
 
-  if (event.target.id === "add-liability-button") {
+  if (clickedButtonId === "add-liability-button") {
     openLiabilityModal();
     return;
   }
 
-  if (event.target.id === "add-account-button") {
+  if (clickedButtonId === "add-account-button") {
     openAccountModal();
     return;
   }
 
-  if (event.target.id === "account-delete-button") {
+  if (clickedButtonId === "account-delete-button") {
     const accountId = document.getElementById("account-edit-id").value;
     if (accountId) {
       closeModal("account-modal");
@@ -338,17 +343,22 @@ function handleDocumentClick(event) {
     return;
   }
 
-  if (event.target.id === "open-transfer-button") {
+  if (clickedButtonId === "open-transfer-button") {
     openTransferModal();
     return;
   }
 
-  if (event.target.id === "logout-button") {
+  if (clickedButtonId === "print-reports-button") {
+    window.print();
+    return;
+  }
+
+  if (clickedButtonId === "logout-button") {
     handleLogout();
     return;
   }
 
-  if (event.target.id === "export-button") {
+  if (clickedButtonId === "export-button") {
     handleExport();
     return;
   }
@@ -1005,9 +1015,12 @@ async function handleGoalSubmit(event) {
     }
 
     const computedSaved = linkedAccount ? getAccountBalance(linkedAccount.id) : saved;
+    const computedFunded = existingGoal ? getGoalFundedAmount({ ...existingGoal, savingsAccountId }) : computedSaved;
+    const computedSpent = existingGoal ? getGoalSpentAmount(existingGoal.id) : 0;
     const status = existingGoal?.status === "spent" || existingGoal?.status === "cancelled"
       ? existingGoal.status
-      : computedSaved >= target ? "reached" : "active";
+      : computedSpent >= target ? "spent"
+        : computedFunded >= target ? "reached" : "active";
 
     try {
       await saveGoal(supabase, state.user.id, {
@@ -1062,7 +1075,6 @@ function openGoalSpendModal(goalId) {
   document.getElementById("goal-spend-goal-id").value = goal.id;
   populateAccountSelect("goal-spend-account", [account], account.id);
   document.getElementById("goal-spend-balance").value = formatMoney(getAccountBalance(account.id), account.currencyCode);
-  populateCategorySelect("goal-spend-category", "expense");
   document.getElementById("goal-spend-date").value = new Date().toISOString().split("T")[0];
   openModal("goal-spend-modal");
 }
@@ -1076,7 +1088,6 @@ async function handleGoalSpendSubmit(event) {
     const account = goal?.savingsAccountId ? getAccountById(goal.savingsAccountId) : null;
     const amount = Number.parseFloat(document.getElementById("goal-spend-amount").value);
     const date = document.getElementById("goal-spend-date").value;
-    const category = document.getElementById("goal-spend-category").value;
     const desc = document.getElementById("goal-spend-comment").value.trim();
     const markCompleted = document.getElementById("goal-spend-complete").checked;
 
@@ -1096,17 +1107,22 @@ async function handleGoalSpendSubmit(event) {
         accountId: account.id,
         amount,
         date,
-        category,
-        desc,
+        category: "goal_expense",
+        desc: desc || goal.name,
         currencyCode: account.currencyCode,
         goalId: goal.id
       });
 
-      if (markCompleted) {
+      const spentAfter = getGoalSpentAmount(goal.id) + amount;
+      const nextStatus = markCompleted || spentAfter >= goal.target
+        ? "spent"
+        : getGoalComputedStatus(goal);
+
+      if (nextStatus !== goal.status) {
         await saveGoal(supabase, state.user.id, {
           ...goal,
-          status: "spent",
-          completedAt: new Date().toISOString()
+          status: nextStatus,
+          completedAt: nextStatus === "spent" ? new Date().toISOString() : goal.completedAt
         });
       }
 
