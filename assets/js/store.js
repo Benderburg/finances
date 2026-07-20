@@ -1,4 +1,5 @@
-import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME, SUPPORTED_LANGUAGES } from "./config.js";
+import { DEFAULT_CURRENCY, DEFAULT_LANGUAGE, DEFAULT_THEME, SUPPORTED_LANGUAGES } from "./config.js?v=20260713-3";
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, normalizeCategory } from "./i18n.js?v=20260713-3";
 
 function loadStoredLanguage() {
   if (typeof window === "undefined") {
@@ -35,13 +36,18 @@ export const state = {
   currentYear: new Date().getFullYear(),
   filter: "all",
   authMode: "signin",
+  isAdminMode: false,
+  adminUsers: [],
+  adminStats: null,
   language: loadStoredLanguage(),
   currency: DEFAULT_CURRENCY,
   theme: loadStoredTheme(),
   accounts: [],
+  categories: [],
   transactions: [],
   budgets: {},
   goals: [],
+  liabilities: [],
   activeAccountId: ""
 };
 
@@ -98,6 +104,51 @@ export function getSavingsAccounts() {
   return state.accounts.filter((account) => account.type === "savings");
 }
 
+export function getCategories(type) {
+  const defaultKeys = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const defaultCategories = defaultKeys.map((key) => ({
+    key,
+    type,
+    isDefault: true
+  }));
+  const customCategories = state.categories
+    .filter((category) => category.type === type)
+    .map((category) => ({
+      ...category,
+      key: normalizeCategory(category.key),
+      isDefault: false
+    }));
+
+  return defaultCategories.concat(customCategories);
+}
+
+export function getCategoryByKey(categoryKey, type = "") {
+  const normalizedKey = normalizeCategory(categoryKey);
+  const customCategory = state.categories.find((category) => (
+    normalizeCategory(category.key) === normalizedKey
+    && (!type || category.type === type)
+  ));
+
+  if (customCategory) {
+    return {
+      ...customCategory,
+      key: normalizedKey,
+      isDefault: false
+    };
+  }
+
+  const defaultType = INCOME_CATEGORIES.includes(normalizedKey) ? "income" : EXPENSE_CATEGORIES.includes(normalizedKey) ? "expense" : "";
+  if (defaultType && (!type || type === defaultType)) {
+    return {
+      key: normalizedKey,
+      type: defaultType,
+      isDefault: true
+    };
+  }
+
+  return null;
+}
+
 export function getGoalSavedAmount(goal) {
   if (goal.savingsAccountId) {
     return getAccountBalance(goal.savingsAccountId);
@@ -119,4 +170,17 @@ export function getGoalProgress(goal) {
   }
 
   return Math.min(100, Math.round((saved / goal.target) * 100));
+}
+
+export function getOpenLiabilities() {
+  return state.liabilities.filter((liability) => liability.status !== "settled");
+}
+
+export function getLiabilityTotalsByCurrency(type) {
+  return getOpenLiabilities()
+    .filter((liability) => (type ? liability.type === type : true))
+    .reduce((totals, liability) => {
+      totals[liability.currencyCode] = (totals[liability.currencyCode] || 0) + liability.amount;
+      return totals;
+    }, {});
 }

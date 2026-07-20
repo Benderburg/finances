@@ -2,42 +2,52 @@ import {
   ACCOUNT_TYPES,
   DEFAULT_CURRENCY,
   DEFAULT_LANGUAGE,
-  EXPENSE_CATEGORIES,
+  LIABILITY_TYPES,
   SUPPORTED_CURRENCIES
-} from "./config.js";
+} from "./config.js?v=20260713-3";
 import {
   state,
   getAccountBalance,
   getAccountById,
+  getCategories,
+  getCategoryByKey,
   getGoalProgress,
   getGoalSavedAmount,
   getSavingsAccounts
-} from "./store.js";
-import { createSupabaseClient, isSupabaseConfigured } from "./supabase.js";
+} from "./store.js?v=20260713-3";
+import { createSupabaseClient, isSupabaseConfigured } from "./supabase.js?v=20260713-3";
 import {
   createTransaction,
   deleteAccountById,
   deleteBudgetByCategory,
+  deleteCategoryById,
   deleteGoalById,
+  deleteLiabilityById,
   deleteTransactionById,
   exportUserData,
   importUserData,
+  loadAdminWorkspace,
   loadUserWorkspace,
   saveAccount,
   saveBudget,
+  saveCategory,
   saveGoal,
+  saveLiability,
   saveProfile,
   saveTransaction,
   sendPasswordReset,
+  settleLiability,
   signIn,
   signOut,
   signUp,
   updateProfileDetails,
+  updateAdminUser,
   updateProfilePreferences,
   updateUserProfile
-} from "./supabase-api.js";
+} from "./supabase-api.js?v=20260713-3";
 import {
   formatMoney,
+  getCategoryLabel,
   renderBudget,
   renderCurrentPage,
   renderPreferenceSelectors,
@@ -47,7 +57,7 @@ import {
   showToast,
   t,
   updateMonthLabel
-} from "./ui.js";
+} from "./ui.js?v=20260713-3";
 
 let supabase;
 let confirmResolver = null;
@@ -55,6 +65,13 @@ let confirmResolver = null;
 window.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  state.isAdminMode = isAdminRoute();
+  if (state.isAdminMode) {
+    state.currentPage = "admin-dashboard";
+    if (new URLSearchParams(window.location.search).has("admin")) {
+      window.history.replaceState(null, "", "./admin");
+    }
+  }
   applyTheme(state.theme);
   bindThemeMedia();
   renderStaticTexts();
@@ -86,8 +103,12 @@ function bindStaticEvents() {
   document.addEventListener("click", handleDocumentClick);
   document.getElementById("auth-form").addEventListener("submit", handleAuthSubmit);
   document.getElementById("transaction-form").addEventListener("submit", handleTransactionSubmit);
+  document.getElementById("category-form").addEventListener("submit", handleCategorySubmit);
+  document.getElementById("admin-user-form").addEventListener("submit", handleAdminUserSubmit);
   document.getElementById("budget-form").addEventListener("submit", handleBudgetSubmit);
   document.getElementById("goal-form").addEventListener("submit", handleGoalSubmit);
+  document.getElementById("liability-form").addEventListener("submit", handleLiabilitySubmit);
+  document.getElementById("liability-settle-form").addEventListener("submit", handleLiabilitySettleSubmit);
   document.getElementById("account-form").addEventListener("submit", handleAccountSubmit);
   document.getElementById("transfer-form").addEventListener("submit", handleTransferSubmit);
   document.getElementById("account-expense-form").addEventListener("submit", handleAccountExpenseSubmit);
@@ -98,6 +119,8 @@ function bindStaticEvents() {
   document.getElementById("settings-name").addEventListener("input", handleAvatarPreview);
   document.getElementById("settings-avatar").addEventListener("input", handleAvatarPreview);
   document.getElementById("goal-currency").addEventListener("change", syncGoalAccountOptions);
+  document.getElementById("category-name").addEventListener("input", updateCategoryMatches);
+  document.getElementById("category-type").addEventListener("change", updateCategoryMatches);
 }
 
 async function applySession(session) {
@@ -105,13 +128,17 @@ async function applySession(session) {
     state.user = null;
     state.profile = null;
     state.accounts = [];
+    state.categories = [];
     state.transactions = [];
     state.budgets = {};
     state.goals = [];
+    state.liabilities = [];
     state.currency = DEFAULT_CURRENCY;
     state.currentPage = "dashboard";
     state.activeAccountId = "";
     state.openMenu = null;
+    state.adminUsers = [];
+    state.adminStats = null;
     renderStaticTexts();
     showAuth();
     return;
@@ -125,6 +152,11 @@ async function applySession(session) {
       currency: state.currency
     });
     await hydrateWorkspace();
+    if (state.isAdminMode && !state.profile?.is_admin) {
+      showToast(t("error_admin_required"), "error");
+      await signOut(supabase);
+      return;
+    }
     showApp();
   } catch (error) {
     showToast(error.message, "error");
@@ -137,9 +169,11 @@ async function hydrateWorkspace() {
   state.language = workspace.profile?.language || DEFAULT_LANGUAGE;
   state.currency = workspace.profile?.currency || DEFAULT_CURRENCY;
   state.accounts = workspace.accounts;
+  state.categories = workspace.categories;
   state.transactions = workspace.transactions;
   state.budgets = workspace.budgets;
   state.goals = workspace.goals;
+  state.liabilities = workspace.liabilities;
 
   if (!state.activeAccountId || !state.accounts.some((account) => account.id === state.activeAccountId)) {
     state.activeAccountId = getSavingsAccounts()[0]?.id || state.accounts[0]?.id || "";
@@ -148,6 +182,17 @@ async function hydrateWorkspace() {
   renderStaticTexts();
   renderUserHeader();
   updateMonthLabel();
+  renderCurrentPage();
+
+  if (state.isAdminMode) {
+    await hydrateAdminWorkspace();
+  }
+}
+
+async function hydrateAdminWorkspace() {
+  const workspace = await loadAdminWorkspace(supabase);
+  state.adminUsers = workspace.users;
+  state.adminStats = workspace.stats;
   renderCurrentPage();
 }
 
@@ -251,8 +296,31 @@ function handleDocumentClick(event) {
     return;
   }
 
+  if (event.target.id === "settings-add-category") {
+    openCategoryModal({ type: "expense" });
+    return;
+  }
+
+  if (event.target.id === "category-delete-button") {
+    const categoryId = document.getElementById("category-edit-id").value;
+    if (categoryId) {
+      closeModal("category-modal");
+      deleteCategory(categoryId);
+    }
+    return;
+  }
+
+  if (event.target.id === "admin-user-delete-button") {
+    return;
+  }
+
   if (event.target.id === "add-goal-button") {
     openGoalModal();
+    return;
+  }
+
+  if (event.target.id === "add-liability-button") {
+    openLiabilityModal();
     return;
   }
 
@@ -289,6 +357,11 @@ function handleDocumentClick(event) {
   if (actionButton) {
     runAction(actionButton.dataset.action, actionButton.dataset);
   }
+}
+
+function isAdminRoute() {
+  const normalizedPath = window.location.pathname.replace(/\/+$/, "");
+  return normalizedPath.endsWith("/admin") || new URLSearchParams(window.location.search).has("admin");
 }
 
 function changeMonth(direction) {
@@ -436,13 +509,170 @@ async function deleteTransaction(transactionId) {
   }
 }
 
+function openCategoryModal({ categoryId = "", type = "expense", sourceSelectId = "" } = {}) {
+  const form = document.getElementById("category-form");
+  form.reset();
+  document.getElementById("category-edit-id").value = categoryId;
+  document.getElementById("category-source-select").value = sourceSelectId;
+  document.getElementById("category-modal-title").textContent = categoryId ? t("modal_edit_category") : t("modal_new_category");
+  document.getElementById("category-delete-button").classList.toggle("hidden", !categoryId);
+  document.getElementById("category-type").disabled = Boolean(categoryId);
+
+  if (categoryId) {
+    const category = state.categories.find((item) => item.id === categoryId);
+    if (!category) {
+      return;
+    }
+
+    document.getElementById("category-name").value = category.name;
+    document.getElementById("category-type").value = category.type;
+  } else {
+    document.getElementById("category-type").value = type;
+  }
+
+  updateCategoryMatches();
+  openModal("category-modal");
+}
+
+function openQuickCategoryModal(dataset) {
+  const sourceSelectId = dataset.selectId || "";
+  const sourceType = dataset.typeSource ? document.getElementById(dataset.typeSource)?.value : "";
+  const type = dataset.categoryType || sourceType || "expense";
+  openCategoryModal({ type, sourceSelectId });
+}
+
+async function handleCategorySubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const editId = document.getElementById("category-edit-id").value;
+    const sourceSelectId = document.getElementById("category-source-select").value;
+    const existingCategory = state.categories.find((category) => category.id === editId);
+    const name = document.getElementById("category-name").value.trim();
+    const type = existingCategory?.type || document.getElementById("category-type").value;
+
+    if (!name) {
+      showToast(t("error_enter_category_name"), "error");
+      return;
+    }
+
+    if (findExactCategoryMatch(name, type, editId)) {
+      showToast(t("error_category_exists"), "error");
+      return;
+    }
+
+    const key = existingCategory?.key || createCategoryKey(name, type);
+
+    try {
+      await saveCategory(supabase, state.user.id, {
+        id: editId || undefined,
+        key,
+        name,
+        type
+      });
+      await hydrateWorkspace();
+
+      if (sourceSelectId) {
+        refreshCategorySelect(sourceSelectId, type, key);
+      }
+
+      closeModal("category-modal");
+      showToast(editId ? t("toast_category_updated") : t("toast_category_added"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+async function deleteCategory(categoryId) {
+  if (!await confirmAction(t("confirm_delete_category"), t("action_delete"))) {
+    return;
+  }
+
+  try {
+    await deleteCategoryById(supabase, state.user.id, categoryId);
+    await hydrateWorkspace();
+    showToast(t("toast_category_deleted"), "info");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function openAdminUserModal(userId) {
+  const user = state.adminUsers.find((item) => item.id === userId);
+  if (!user) {
+    return;
+  }
+
+  document.getElementById("admin-user-form").reset();
+  document.getElementById("admin-user-id").value = user.id;
+  document.getElementById("admin-user-name").value = user.fullName || "";
+  document.getElementById("admin-user-email").value = user.email || "";
+  document.getElementById("admin-user-billing").value = user.billing || "regular";
+  document.getElementById("admin-user-is-admin").checked = user.isAdmin;
+  openModal("admin-user-modal");
+}
+
+async function handleAdminUserSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const userId = document.getElementById("admin-user-id").value;
+    const fullName = document.getElementById("admin-user-name").value.trim();
+    const billing = document.getElementById("admin-user-billing").value;
+    const isAdmin = document.getElementById("admin-user-is-admin").checked;
+
+    try {
+      await updateAdminUser(supabase, userId, {
+        fullName,
+        billing,
+        isAdmin
+      });
+      await hydrateAdminWorkspace();
+      closeModal("admin-user-modal");
+      showToast(t("toast_admin_user_updated"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+function updateCategoryMatches() {
+  const name = document.getElementById("category-name").value.trim();
+  const type = document.getElementById("category-type").value;
+  const editId = document.getElementById("category-edit-id").value;
+  const container = document.getElementById("category-matches");
+
+  if (!name) {
+    container.textContent = "";
+    return;
+  }
+
+  const matches = getCategories(type)
+    .filter((category) => {
+      const customId = category.isDefault ? "" : category.id;
+      return customId !== editId && normalizeForSearch(getCategoryDisplayName(category.key, type)).includes(normalizeForSearch(name));
+    })
+    .slice(0, 5);
+  const exactMatch = findExactCategoryMatch(name, type, editId);
+
+  if (!matches.length && !exactMatch) {
+    container.textContent = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <strong>${exactMatch ? t("category_match_exact") : t("category_matches")}</strong>
+    <div class="category-match-list">
+      ${matches.map((category) => `<span>${getCategoryDisplayName(category.key, type)}</span>`).join("")}
+    </div>
+  `;
+}
+
 function openBudgetModal() {
   document.getElementById("budget-form").reset();
   document.getElementById("budget-edit-category").value = "";
-  const select = document.getElementById("budget-cat");
-  select.innerHTML = EXPENSE_CATEGORIES
-    .map((category) => `<option value="${category}">${t(`category_${category}`)}</option>`)
-    .join("");
+  populateCategorySelect("budget-cat", "expense");
   openModal("budget-modal");
 }
 
@@ -651,7 +881,7 @@ function openAccountExpenseModal(accountId = "") {
   const form = document.getElementById("account-expense-form");
   form.reset();
   populateAccountSelect("account-expense-account", state.accounts, accountId);
-  populateSimpleOptions("account-expense-category", EXPENSE_CATEGORIES.map((category) => ({ value: category, label: t(`category_${category}`) })));
+  populateCategorySelect("account-expense-category", "expense");
   document.getElementById("account-expense-date").value = new Date().toISOString().split("T")[0];
   openModal("account-expense-modal");
 }
@@ -832,7 +1062,7 @@ function openGoalSpendModal(goalId) {
   document.getElementById("goal-spend-goal-id").value = goal.id;
   populateAccountSelect("goal-spend-account", [account], account.id);
   document.getElementById("goal-spend-balance").value = formatMoney(getAccountBalance(account.id), account.currencyCode);
-  populateSimpleOptions("goal-spend-category", EXPENSE_CATEGORIES.map((category) => ({ value: category, label: t(`category_${category}`) })));
+  populateCategorySelect("goal-spend-category", "expense");
   document.getElementById("goal-spend-date").value = new Date().toISOString().split("T")[0];
   openModal("goal-spend-modal");
 }
@@ -887,6 +1117,172 @@ async function handleGoalSpendSubmit(event) {
       showToast(error.message, "error");
     }
   });
+}
+
+function openLiabilityModal(liabilityId = "") {
+  const form = document.getElementById("liability-form");
+  form.reset();
+  document.getElementById("liability-edit-id").value = liabilityId;
+  document.getElementById("liability-modal-title").textContent = liabilityId ? t("modal_edit_liability") : t("modal_new_liability");
+  populateSimpleOptions("liability-currency", SUPPORTED_CURRENCIES.map((currency) => ({ value: currency, label: currency })));
+  populateSimpleOptions("liability-type", LIABILITY_TYPES.map((type) => ({ value: type, label: t(`liability_type_${type}`) })));
+
+  if (liabilityId) {
+    const liability = state.liabilities.find((item) => item.id === liabilityId);
+    if (!liability || liability.status === "settled") {
+      return;
+    }
+
+    document.getElementById("liability-counterparty").value = liability.counterpartyName;
+    document.getElementById("liability-amount").value = liability.amount;
+    document.getElementById("liability-currency").value = liability.currencyCode;
+    document.getElementById("liability-type").value = liability.type;
+    document.getElementById("liability-due-date").value = liability.dueDate || "";
+    document.getElementById("liability-comment").value = liability.comment || "";
+  } else {
+    document.getElementById("liability-currency").value = state.currency;
+    document.getElementById("liability-type").value = "receivable";
+  }
+
+  openModal("liability-modal");
+}
+
+async function handleLiabilitySubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const liabilityId = document.getElementById("liability-edit-id").value;
+    const existingLiability = state.liabilities.find((item) => item.id === liabilityId);
+    const counterpartyName = document.getElementById("liability-counterparty").value.trim();
+    const amount = Number.parseFloat(document.getElementById("liability-amount").value);
+    const currencyCode = document.getElementById("liability-currency").value;
+    const type = document.getElementById("liability-type").value;
+    const dueDate = document.getElementById("liability-due-date").value;
+    const comment = document.getElementById("liability-comment").value.trim();
+
+    if (!counterpartyName) {
+      showToast(t("error_enter_counterparty"), "error");
+      return;
+    }
+
+    if (!amount || amount <= 0) {
+      showToast(t("error_invalid_amount"), "error");
+      return;
+    }
+
+    try {
+      await saveLiability(supabase, state.user.id, {
+        id: liabilityId || undefined,
+        counterpartyName,
+        amount,
+        currencyCode,
+        type,
+        dueDate,
+        comment,
+        status: existingLiability?.status || "open"
+      });
+      await hydrateWorkspace();
+      closeModal("liability-modal");
+      showToast(liabilityId ? t("toast_liability_updated") : t("toast_liability_added"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+function openLiabilitySettleModal(liabilityId) {
+  const liability = state.liabilities.find((item) => item.id === liabilityId);
+  if (!liability || liability.status === "settled") {
+    return;
+  }
+
+  const accounts = state.accounts.filter((account) => account.currencyCode === liability.currencyCode);
+  if (!accounts.length) {
+    showToast(t("error_select_account"), "error");
+    return;
+  }
+
+  document.getElementById("liability-settle-form").reset();
+  document.getElementById("liability-settle-id").value = liability.id;
+  document.getElementById("liability-settle-prompt").textContent = liability.type === "receivable"
+    ? t("settle_receivable_account_prompt")
+    : t("settle_payable_account_prompt");
+  document.getElementById("liability-settle-amount").value = formatMoney(liability.amount, liability.currencyCode);
+  document.getElementById("liability-settle-date").value = new Date().toISOString().split("T")[0];
+  populateAccountSelect("liability-settle-account", accounts, accounts[0]?.id || "");
+  openModal("liability-settle-modal");
+}
+
+async function handleLiabilitySettleSubmit(event) {
+  event.preventDefault();
+
+  await runWithSubmitLock(event.currentTarget, async () => {
+    const liabilityId = document.getElementById("liability-settle-id").value;
+    const accountId = document.getElementById("liability-settle-account").value;
+    const date = document.getElementById("liability-settle-date").value;
+    const liability = state.liabilities.find((item) => item.id === liabilityId);
+    const account = getAccountById(accountId);
+
+    if (!liability || liability.status === "settled") {
+      return;
+    }
+
+    if (!account) {
+      showToast(t("error_select_account"), "error");
+      return;
+    }
+
+    if (account.currencyCode !== liability.currencyCode) {
+      showToast(t("error_liability_currency_account_mismatch"), "error");
+      return;
+    }
+
+    if (!date) {
+      showToast(t("error_choose_date"), "error");
+      return;
+    }
+
+    const transactionType = liability.type === "receivable" ? "income" : "expense";
+    const category = transactionType === "income" ? "other_income" : "other_expense";
+    const desc = `${t("action_settle")}: ${liability.counterpartyName}${liability.comment ? ` - ${liability.comment}` : ""}`;
+
+    try {
+      const transaction = await createTransaction(supabase, state.user.id, {
+        type: transactionType,
+        accountId,
+        amount: liability.amount,
+        date,
+        category,
+        desc,
+        currencyCode: account.currencyCode
+      });
+
+      await settleLiability(supabase, state.user.id, liability.id, {
+        accountId,
+        transactionId: transaction.id,
+        settledAt: new Date().toISOString()
+      });
+      await hydrateWorkspace();
+      closeModal("liability-settle-modal");
+      showToast(t("toast_liability_settled"));
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  });
+}
+
+async function deleteLiability(liabilityId) {
+  if (!await confirmAction(t("confirm_delete_liability"), t("action_delete"))) {
+    return;
+  }
+
+  try {
+    await deleteLiabilityById(supabase, state.user.id, liabilityId);
+    await hydrateWorkspace();
+    showToast(t("toast_liability_deleted"), "info");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
 }
 
 async function handleExport() {
@@ -1041,10 +1437,24 @@ function runAction(action, dataset) {
     deleteTransaction(dataset.id);
   } else if (action === "delete-budget") {
     deleteBudget(dataset.category);
+  } else if (action === "quick-add-category") {
+    openQuickCategoryModal(dataset);
+  } else if (action === "edit-category") {
+    openCategoryModal({ categoryId: dataset.id });
+  } else if (action === "delete-category") {
+    deleteCategory(dataset.id);
+  } else if (action === "edit-admin-user") {
+    openAdminUserModal(dataset.id);
   } else if (action === "edit-goal") {
     openGoalModal(dataset.id);
   } else if (action === "delete-goal") {
     deleteGoal(dataset.id);
+  } else if (action === "edit-liability") {
+    openLiabilityModal(dataset.id);
+  } else if (action === "delete-liability") {
+    deleteLiability(dataset.id);
+  } else if (action === "settle-liability") {
+    openLiabilitySettleModal(dataset.id);
   } else if (action === "fund-account") {
     openTransferModal(dataset.id);
   } else if (action === "withdraw-account") {
@@ -1177,6 +1587,72 @@ function populateSimpleOptions(selectId, options) {
   document.getElementById(selectId).innerHTML = options
     .map((option) => `<option value="${option.value}">${option.label}</option>`)
     .join("");
+}
+
+function populateCategorySelect(selectId, type, selectedValue = "") {
+  populateSimpleOptions(selectId, getCategories(type).map((category) => ({
+    value: category.key,
+    label: `${category.isDefault ? "" : "+ "}${getCategoryDisplayName(category.key, type)}`
+  })));
+
+  if (selectedValue) {
+    document.getElementById(selectId).value = selectedValue;
+  }
+}
+
+function refreshCategorySelect(selectId, type, selectedValue) {
+  if (selectId === "tx-category") {
+    setTransactionType(type);
+    document.getElementById(selectId).value = selectedValue;
+    return;
+  }
+
+  populateCategorySelect(selectId, type, selectedValue);
+}
+
+function getCategoryDisplayName(categoryKey, type = "") {
+  const category = getCategoryByKey(categoryKey, type);
+  if (!category) {
+    return categoryKey;
+  }
+
+  return category.isDefault ? getCategoryLabel(category.key) : category.name;
+}
+
+function findExactCategoryMatch(name, type, ignoredCategoryId = "") {
+  const normalizedName = normalizeForSearch(name);
+  return getCategories(type).find((category) => {
+    const customId = category.isDefault ? "" : category.id;
+    return customId !== ignoredCategoryId && normalizeForSearch(getCategoryDisplayName(category.key, type)) === normalizedName;
+  });
+}
+
+function createCategoryKey(name, type) {
+  const base = normalizeForKey(name) || "category";
+  const existingKeys = new Set(getCategories(type).map((category) => category.key));
+  let key = `custom_${base}`;
+  let index = 2;
+
+  while (existingKeys.has(key)) {
+    key = `custom_${base}_${index}`;
+    index += 1;
+  }
+
+  return key;
+}
+
+function normalizeForKey(value) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{Mark}/gu, "")
+    .replace(/[^\p{Letter}\p{Number}]+/gu, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeForSearch(value) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function getDefaultRegularAccountId() {

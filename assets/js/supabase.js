@@ -1,4 +1,4 @@
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config.js";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase-config.js?v=20260713-3";
 
 export function isSupabaseConfigured() {
   return !SUPABASE_URL.includes("YOUR_PROJECT_ID") && !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY");

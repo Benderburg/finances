@@ -7,6 +7,9 @@ create table if not exists public.profiles (
   avatar_url text,
   language text not null default 'ro' check (language in ('ro', 'ru', 'en')),
   currency text not null default 'MDL' check (currency in ('MDL', 'EUR', 'USD')),
+  billing text not null default 'regular' check (billing in ('regular', 'premium')),
+  is_admin boolean not null default false,
+  last_seen_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -22,6 +25,20 @@ create table if not exists public.accounts (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  key text not null,
+  name text not null,
+  type text not null check (type in ('income', 'expense')),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  unique (user_id, type, key)
+);
+
+create unique index if not exists categories_user_type_name_unique
+on public.categories (user_id, type, lower(name));
 
 create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),
@@ -76,6 +93,23 @@ create table if not exists public.transactions (
   )
 );
 
+create table if not exists public.liabilities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  counterparty_name text not null,
+  amount numeric(12, 2) not null check (amount > 0),
+  currency_code text not null check (currency_code in ('MDL', 'EUR', 'USD')),
+  liability_type text not null check (liability_type in ('receivable', 'payable', 'credit')),
+  due_date date,
+  comment text,
+  status text not null default 'open' check (status in ('open', 'settled')),
+  settlement_account_id uuid references public.accounts(id) on delete set null,
+  settlement_transaction_id uuid references public.transactions(id) on delete set null,
+  settled_at timestamptz,
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now())
+);
+
 create table if not exists public.budgets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -92,6 +126,36 @@ language plpgsql
 as $$
 begin
   new.updated_at = timezone('utc', now());
+  return new;
+end;
+$$;
+
+create or replace function public.is_current_user_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((
+    select p.is_admin
+    from public.profiles p
+    where p.id = auth.uid()
+  ), false);
+$$;
+
+create or replace function public.protect_profile_admin_fields()
+returns trigger
+language plpgsql
+as $$
+begin
+  if auth.uid() = old.id
+    and not public.is_current_user_admin()
+    and (new.is_admin is distinct from old.is_admin or new.billing is distinct from old.billing)
+  then
+    raise exception 'Only admins can change billing or admin rights';
+  end if;
+
   return new;
 end;
 $$;
@@ -259,14 +323,66 @@ begin
 end;
 $$;
 
+create or replace function public.validate_liability_links()
+returns trigger
+language plpgsql
+as $$
+declare
+  account_row public.accounts%rowtype;
+  transaction_row public.transactions%rowtype;
+begin
+  if new.settlement_account_id is not null then
+    select * into account_row from public.accounts where id = new.settlement_account_id;
+    if account_row.id is null or account_row.user_id <> new.user_id then
+      raise exception 'Settlement account must belong to the same user';
+    end if;
+    if account_row.currency_code <> new.currency_code then
+      raise exception 'Liability currency must match settlement account currency';
+    end if;
+  end if;
+
+  if new.settlement_transaction_id is not null then
+    select * into transaction_row from public.transactions where id = new.settlement_transaction_id;
+    if transaction_row.id is null or transaction_row.user_id <> new.user_id then
+      raise exception 'Settlement transaction must belong to the same user';
+    end if;
+    if transaction_row.currency_code <> new.currency_code then
+      raise exception 'Liability currency must match settlement transaction currency';
+    end if;
+  end if;
+
+  if new.status = 'settled' and new.settled_at is null then
+    new.settled_at = timezone('utc', now());
+  end if;
+
+  if new.status = 'open' then
+    new.settled_at = null;
+    new.settlement_account_id = null;
+    new.settlement_transaction_id = null;
+  end if;
+
+  return new;
+end;
+$$;
+
 drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
 
+drop trigger if exists profiles_protect_admin_fields on public.profiles;
+create trigger profiles_protect_admin_fields
+before update on public.profiles
+for each row execute function public.protect_profile_admin_fields();
+
 drop trigger if exists accounts_set_updated_at on public.accounts;
 create trigger accounts_set_updated_at
 before update on public.accounts
+for each row execute function public.set_updated_at();
+
+drop trigger if exists categories_set_updated_at on public.categories;
+create trigger categories_set_updated_at
+before update on public.categories
 for each row execute function public.set_updated_at();
 
 drop trigger if exists transactions_set_updated_at on public.transactions;
@@ -284,6 +400,11 @@ create trigger goals_set_updated_at
 before update on public.goals
 for each row execute function public.set_updated_at();
 
+drop trigger if exists liabilities_set_updated_at on public.liabilities;
+create trigger liabilities_set_updated_at
+before update on public.liabilities
+for each row execute function public.set_updated_at();
+
 drop trigger if exists profiles_create_primary_account on public.profiles;
 create trigger profiles_create_primary_account
 after insert on public.profiles
@@ -299,15 +420,22 @@ create trigger transactions_validate_links
 before insert or update on public.transactions
 for each row execute function public.validate_transaction_links();
 
+drop trigger if exists liabilities_validate_links on public.liabilities;
+create trigger liabilities_validate_links
+before insert or update on public.liabilities
+for each row execute function public.validate_liability_links();
+
 alter table public.profiles enable row level security;
 alter table public.accounts enable row level security;
+alter table public.categories enable row level security;
 alter table public.transactions enable row level security;
 alter table public.budgets enable row level security;
 alter table public.goals enable row level security;
+alter table public.liabilities enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own" on public.profiles
-for select using (auth.uid() = id);
+for select using (auth.uid() = id or public.is_current_user_admin());
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own" on public.profiles
@@ -315,10 +443,14 @@ for insert with check (auth.uid() = id);
 
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own" on public.profiles
-for update using (auth.uid() = id) with check (auth.uid() = id);
+for update using (auth.uid() = id or public.is_current_user_admin()) with check (auth.uid() = id or public.is_current_user_admin());
 
 drop policy if exists "accounts_all_own" on public.accounts;
 create policy "accounts_all_own" on public.accounts
+for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "categories_all_own" on public.categories;
+create policy "categories_all_own" on public.categories
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "transactions_all_own" on public.transactions;
@@ -331,4 +463,8 @@ for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists "goals_all_own" on public.goals;
 create policy "goals_all_own" on public.goals
+for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "liabilities_all_own" on public.liabilities;
+create policy "liabilities_all_own" on public.liabilities
 for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

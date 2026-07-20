@@ -1,27 +1,30 @@
 import {
   ACCOUNT_TYPES,
-  CAT_COLORS,
-  CAT_ICONS,
   DEFAULT_LANGUAGE,
-  EXPENSE_CATEGORIES,
-  INCOME_CATEGORIES,
-  LOCALE_BY_LANGUAGE,
   SUPPORTED_CURRENCIES,
   SUPPORTED_LANGUAGES,
-  SUPPORTED_THEMES,
+  SUPPORTED_THEMES
+} from "./config.js?v=20260713-3";
+import {
+  CAT_COLORS,
+  CAT_ICONS,
+  LOCALE_BY_LANGUAGE,
   TRANSLATIONS
-} from "./config.js";
+} from "./i18n.js?v=20260713-3";
 import {
   getAccountBalance,
   getAccountById,
+  getCategories,
+  getCategoryByKey,
   getGoalProgress,
   getGoalSavedAmount,
   getGoalSpentAmount,
+  getLiabilityTotalsByCurrency,
   getMonthTransactions,
   getSavingsAccounts,
   state,
   sumTransactions
-} from "./store.js";
+} from "./store.js?v=20260713-3";
 
 const charts = {};
 const LANGUAGE_FLAGS = {
@@ -72,6 +75,14 @@ function getGoalStatusLabel(status) {
   return t(`goal_status_${status || "active"}`);
 }
 
+function getLiabilityStatusLabel(status) {
+  return t(`liability_status_${status || "open"}`);
+}
+
+function getLiabilityTypeLabel(type) {
+  return t(`liability_type_${type || "receivable"}`);
+}
+
 function getGoalById(goalId) {
   return state.goals.find((goal) => goal.id === goalId) || null;
 }
@@ -105,7 +116,12 @@ export function formatDate(value) {
 }
 
 export function getCategoryLabel(categoryKey) {
-  return t(`category_${categoryKey}`);
+  const category = getCategoryByKey(categoryKey);
+  if (!category) {
+    return categoryKey || t("field_category");
+  }
+
+  return category.isDefault ? t(`category_${category.key}`) : category.name;
 }
 
 export function showToast(message, type = "success") {
@@ -201,9 +217,10 @@ export function renderAuthMode() {
 export function renderUserHeader() {
   const email = state.profile?.email || state.user?.email || "user@example.com";
   const name = state.profile?.full_name || email.split("@")[0] || t("user_fallback");
+  const displayName = state.profile?.billing === "premium" ? `${name} 👑` : name;
   const avatarUrl = state.profile?.avatar_url || state.user?.user_metadata?.avatar_url || "";
 
-  document.getElementById("user-name").textContent = name;
+  document.getElementById("user-name").textContent = displayName;
   document.getElementById("user-email").textContent = email;
   renderAvatar(document.getElementById("user-avatar"), name, avatarUrl, true);
   renderAvatar(document.getElementById("settings-avatar-preview"), name, avatarUrl);
@@ -217,17 +234,60 @@ export function renderSettingsPage() {
   document.getElementById("settings-name").value = name;
   document.getElementById("settings-email").value = email;
   document.getElementById("settings-avatar").value = avatarUrl;
+  document.getElementById("settings-billing").textContent = t(`billing_${state.profile?.billing || "regular"}`);
   renderAvatar(document.getElementById("settings-avatar-preview"), name || t("user_fallback"), avatarUrl);
+  renderSettingsCategories();
+}
+
+function renderSettingsCategories() {
+  const container = document.getElementById("settings-categories-list");
+  const customCategories = state.categories;
+
+  if (!customCategories.length) {
+    container.innerHTML = getEmptyState("📦", t("no_custom_categories"), t("btn_add_category"));
+    return;
+  }
+
+  container.innerHTML = ["expense", "income"].map((type) => {
+    const categories = customCategories.filter((category) => category.type === type);
+    if (!categories.length) {
+      return "";
+    }
+
+    return `
+      <section class="category-settings-group">
+        <div class="category-settings-title">${t(type === "income" ? "transaction_income" : "transaction_expense")}</div>
+        <div class="category-settings-list">
+          ${categories.map((category) => `
+            <div class="category-settings-row">
+              <div>
+                <div class="tx-name">${category.name}</div>
+                <div class="tx-date">${category.key}</div>
+              </div>
+              <div class="tx-actions">
+                <button class="tx-btn" type="button" data-action="edit-category" data-id="${category.id}" title="${t("action_edit")}">✏️</button>
+                <button class="tx-btn del" type="button" data-action="delete-category" data-id="${category.id}" title="${t("action_delete")}">🗑️</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }).join("");
 }
 
 export function renderCurrentPage() {
   renderNavigation();
-  document.querySelector(".hero").classList.toggle("hidden", state.currentPage === "settings");
+  document.querySelector(".hero").classList.toggle("hidden", state.currentPage === "settings" || state.isAdminMode);
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("active", page.id === `page-${state.currentPage}`);
   });
 
-  if (state.currentPage === "dashboard") {
+  if (state.currentPage === "admin-dashboard") {
+    renderAdminDashboard();
+  } else if (state.currentPage === "admin-users") {
+    renderAdminUsers();
+  } else if (state.currentPage === "dashboard") {
     renderDashboard();
   } else if (state.currentPage === "transactions") {
     renderTransactions();
@@ -237,6 +297,8 @@ export function renderCurrentPage() {
     renderSavings();
   } else if (state.currentPage === "goals") {
     renderGoals();
+  } else if (state.currentPage === "liabilities") {
+    renderLiabilities();
   } else if (state.currentPage === "reports") {
     renderReports();
   } else if (state.currentPage === "settings") {
@@ -245,9 +307,65 @@ export function renderCurrentPage() {
 }
 
 export function renderNavigation() {
+  const nav = document.querySelector(".nav");
+  const items = state.isAdminMode
+    ? [
+      ["admin-dashboard", "📊", "admin_nav_dashboard"],
+      ["admin-users", "👥", "admin_nav_users"]
+    ]
+    : [
+      ["dashboard", "📊", "nav_dashboard"],
+      ["transactions", "↕️", "nav_transactions"],
+      ["budget", "🎯", "nav_budget"],
+      ["savings", "🏦", "nav_savings"],
+      ["goals", "🏆", "nav_goals"],
+      ["liabilities", "🤝", "nav_liabilities"],
+      ["reports", "📈", "nav_reports"]
+    ];
+
+  nav.innerHTML = items.map(([page, icon, labelKey]) => `
+    <button class="nav-item" type="button" data-page="${page}">
+      <span class="icon">${icon}</span>
+      <span>${t(labelKey)}</span>
+    </button>
+  `).join("");
+
   document.querySelectorAll(".nav-item").forEach((element) => {
     element.classList.toggle("active", element.dataset.page === state.currentPage);
   });
+}
+
+export function renderAdminDashboard() {
+  const stats = state.adminStats || {};
+  document.getElementById("admin-total-users").textContent = stats.total || 0;
+  document.getElementById("admin-returned-users").textContent = stats.returnedAfterDay || 0;
+  document.getElementById("admin-not-returned-users").textContent = stats.notReturned || 0;
+  document.getElementById("admin-premium-users").textContent = stats.premium || 0;
+}
+
+export function renderAdminUsers() {
+  const container = document.getElementById("admin-users-list");
+
+  if (!state.adminUsers.length) {
+    container.innerHTML = getEmptyState("👥", t("admin_no_users"), "");
+    return;
+  }
+
+  container.innerHTML = state.adminUsers.map((user) => `
+    <div class="transaction-item">
+      <div class="tx-icon" style="background:var(--surface-tint);color:var(--accent)">${user.billing === "premium" ? "👑" : "👤"}</div>
+      <div class="tx-info">
+        <div class="tx-name">${user.fullName || user.email || t("user_fallback")}</div>
+        <div class="tx-date">${user.email}</div>
+        <span class="tx-category">${t(`billing_${user.billing || "regular"}`)}${user.isAdmin ? ` • ${t("admin_role")}` : ""}</span>
+        <span class="tx-category">${t("admin_created_at")}: ${formatDate(user.createdAt)}</span>
+        ${user.lastSeenAt ? `<span class="tx-category">${t("admin_last_seen")}: ${formatDate(user.lastSeenAt)}</span>` : ""}
+      </div>
+      <div class="tx-actions">
+        <button class="tx-btn" type="button" data-action="edit-admin-user" data-id="${user.id}" title="${t("action_edit")}">✏️</button>
+      </div>
+    </div>
+  `).join("");
 }
 
 export function renderDashboard() {
@@ -470,6 +588,91 @@ export function renderGoals() {
   }).join("");
 }
 
+export function renderLiabilities() {
+  const container = document.getElementById("liabilities-list");
+  const receivableTotals = getLiabilityTotalsByCurrency("receivable");
+  const payableTotals = {
+    ...getLiabilityTotalsByCurrency("payable")
+  };
+
+  Object.entries(getLiabilityTotalsByCurrency("credit")).forEach(([currency, amount]) => {
+    payableTotals[currency] = (payableTotals[currency] || 0) + amount;
+  });
+
+  document.getElementById("liability-receivable-total").textContent = formatMoneyList(receivableTotals);
+  document.getElementById("liability-payable-total").textContent = formatMoneyList(payableTotals);
+
+  if (!state.liabilities.length) {
+    container.innerHTML = getEmptyState("🤝", t("no_liabilities_title"), t("no_liabilities_body"));
+    return;
+  }
+
+  container.innerHTML = ["credit", "payable", "receivable"]
+    .map((type) => {
+      const liabilities = state.liabilities
+        .filter((liability) => liability.type === type)
+        .sort(compareLiabilities);
+
+      if (!liabilities.length) {
+        return "";
+      }
+
+      return `
+        <section class="liability-group">
+          <div class="liability-group-title">${getLiabilityTypeLabel(type)}</div>
+          ${liabilities.map(getLiabilityMarkup).join("")}
+        </section>
+      `;
+    })
+    .join("");
+}
+
+function getLiabilityMarkup(liability) {
+  const isReceivable = liability.type === "receivable";
+  const isSettled = liability.status === "settled";
+  const amountClass = isReceivable ? "income" : "expense";
+  const sign = isReceivable ? "+" : "-";
+  const deadline = liability.dueDate ? formatDate(liability.dueDate) : "";
+  const settlementAccount = liability.settlementAccountId ? getAccountById(liability.settlementAccountId) : null;
+
+  return `
+    <div class="transaction-item liability-item ${isSettled ? "settled" : ""}">
+      <div class="tx-icon" style="background:${getThemeColor(isReceivable ? "--chart-income" : "--chart-expense")}22;color:${getThemeColor(isReceivable ? "--income" : "--expense")}">${isReceivable ? "💸" : liability.type === "credit" ? "🏦" : "🤝"}</div>
+      <div class="tx-info">
+        <div class="tx-name">${liability.counterpartyName}</div>
+        <div class="tx-date">${deadline ? `${t("field_due_date")}: ${deadline}` : (liability.settledAt ? `✓ ${formatDate(liability.settledAt)}` : "")}</div>
+        <span class="tx-category">${getLiabilityTypeLabel(liability.type)} • ${getLiabilityStatusLabel(liability.status)}</span>
+        ${liability.comment ? `<div class="settings-note liability-comment">${liability.comment}</div>` : ""}
+        ${settlementAccount ? `<span class="tx-category">${t("field_settlement_account")}: ${settlementAccount.name} (${settlementAccount.currencyCode})</span>` : ""}
+      </div>
+      <div class="tx-amount ${amountClass}">${sign}${formatMoney(liability.amount, liability.currencyCode)}</div>
+      <div class="tx-actions">
+        ${!isSettled ? `
+          <button class="btn btn-primary btn-sm" type="button" data-action="settle-liability" data-id="${liability.id}">${t("btn_settle")}</button>
+          <button class="tx-btn" type="button" data-action="edit-liability" data-id="${liability.id}" title="${t("action_edit")}">✏️</button>
+        ` : ""}
+        <button class="tx-btn del" type="button" data-action="delete-liability" data-id="${liability.id}" title="${t("action_delete")}">🗑️</button>
+      </div>
+    </div>
+  `;
+}
+
+function compareLiabilities(left, right) {
+  if (left.status !== right.status) {
+    return left.status === "settled" ? 1 : -1;
+  }
+
+  if (left.dueDate && right.dueDate && left.dueDate !== right.dueDate) {
+    return new Date(left.dueDate) - new Date(right.dueDate);
+  }
+
+  if (left.dueDate || right.dueDate) {
+    return left.dueDate ? -1 : 1;
+  }
+
+  return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+}
+
 export function renderReports() {
   renderMonthlyChart();
   renderExpensePieChart();
@@ -482,9 +685,9 @@ export function setTransactionType(type) {
   document.getElementById("btn-income").className = `type-btn${type === "income" ? " active-income" : ""}`;
   document.getElementById("btn-expense").className = `type-btn${type === "expense" ? " active-expense" : ""}`;
 
-  const categories = type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+  const categories = getCategories(type);
   document.getElementById("tx-category").innerHTML = categories
-    .map((category) => `<option value="${category}">${CAT_ICONS[category] || ""} ${getCategoryLabel(category)}</option>`)
+    .map((category) => `<option value="${category.key}">${CAT_ICONS[category.key] || ""} ${getCategoryLabel(category.key)}</option>`)
     .join("");
 }
 
@@ -798,6 +1001,15 @@ function getDeadlineMarkup(deadline) {
 
   const days = Math.ceil((new Date(deadline) - new Date()) / 86400000);
   return `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📅 ${days > 0 ? `${days} ${t("days_left")}` : t("deadline_expired")}</div>`;
+}
+
+function formatMoneyList(totals) {
+  const entries = Object.entries(totals).filter(([, amount]) => amount > 0);
+  if (!entries.length) {
+    return formatMoney(0, state.currency);
+  }
+
+  return entries.map(([currency, amount]) => formatMoney(amount, currency)).join(" / ");
 }
 
 function getEmptyState(icon, title, text) {

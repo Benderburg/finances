@@ -3,15 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Norocel — evidența finanțelor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/colors.css">
-  <link rel="stylesheet" href="./assets/css/main.css">
+  <link rel="stylesheet" href="./assets/css/colors.css?v=20260713-3">
+  <link rel="stylesheet" href="./assets/css/main.css?v=20260713-3">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
-  <script type="module" src="./assets/js/app.js"></script>
+  <script type="module" src="./assets/js/app.js?v=20260713-3"></script>
 </head>
 <body class="app-booting">
   <div class="boot-loader" id="boot-loader" aria-live="polite" aria-label="Loading">
@@ -98,6 +101,10 @@
         <button class="nav-item" type="button" data-page="goals">
           <span class="icon">🏆</span>
           <span data-i18n="nav_goals">Obiective</span>
+        </button>
+        <button class="nav-item" type="button" data-page="liabilities">
+          <span class="icon">🤝</span>
+          <span data-i18n="nav_liabilities">Obligații</span>
         </button>
         <button class="nav-item" type="button" data-page="reports">
           <span class="icon">📈</span>
@@ -274,6 +281,31 @@
         <div class="goals-grid" id="goals-grid"></div>
       </section>
 
+      <section class="page" id="page-liabilities">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="page_liabilities">Obligații</div>
+            <div class="page-subtitle" data-i18n="subtitle_liabilities">Datorii personale, bani de primit și credite</div>
+          </div>
+          <button class="btn btn-primary" id="add-liability-button" type="button" data-i18n="btn_add_liability">+ Obligație</button>
+        </div>
+
+        <div class="grid-2">
+          <article class="stat-card green">
+            <div class="stat-label" data-i18n="stat_to_receive">De primit</div>
+            <div class="stat-value green" id="liability-receivable-total">0</div>
+          </article>
+          <article class="stat-card red">
+            <div class="stat-label" data-i18n="stat_to_pay">De plătit</div>
+            <div class="stat-value red" id="liability-payable-total">0</div>
+          </article>
+        </div>
+
+        <article class="card mt-20">
+          <div id="liabilities-list"></div>
+        </article>
+      </section>
+
       <section class="page" id="page-savings">
         <div class="page-header">
           <div>
@@ -383,7 +415,10 @@
               </div>
               <div class="settings-preview">
                 <div class="topbar-avatar settings-avatar-preview" id="settings-avatar-preview">N</div>
-                <div class="settings-preview-copy" data-i18n="settings_avatar_hint">Previzualizarea avatarului se actualizează imediat.</div>
+              <div class="settings-preview-copy" data-i18n="settings_avatar_hint">Previzualizarea avatarului se actualizează imediat.</div>
+              </div>
+              <div class="settings-note">
+                <span data-i18n="field_billing">Tip cont</span>: <strong id="settings-billing">Regular</strong>
               </div>
               <div class="form-actions">
                 <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
@@ -404,7 +439,56 @@
             </div>
             <p class="settings-note" data-i18n="settings_data_hint">Importul înlocuiește tranzacțiile, bugetele și obiectivele existente.</p>
           </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div class="card-title" data-i18n="card_category_settings">Categorii</div>
+              <button class="btn btn-secondary btn-sm" id="settings-add-category" type="button" data-i18n="btn_add_category">+ Categorie</button>
+            </div>
+            <div id="settings-categories-list"></div>
+          </article>
         </div>
+      </section>
+
+      <section class="page" id="page-admin-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="admin_page_dashboard">Admin</div>
+            <div class="page-subtitle" data-i18n="admin_subtitle_dashboard">Statistici utilizatori</div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card blue">
+            <div class="stat-label" data-i18n="admin_stat_total_users">Utilizatori</div>
+            <div class="stat-value blue" id="admin-total-users">0</div>
+          </article>
+          <article class="stat-card green">
+            <div class="stat-label" data-i18n="admin_stat_returned">Reveniți după o zi</div>
+            <div class="stat-value green" id="admin-returned-users">0</div>
+          </article>
+          <article class="stat-card red">
+            <div class="stat-label" data-i18n="admin_stat_not_returned">Nu au revenit</div>
+            <div class="stat-value red" id="admin-not-returned-users">0</div>
+          </article>
+          <article class="stat-card yellow">
+            <div class="stat-label" data-i18n="admin_stat_premium">Premium</div>
+            <div class="stat-value yellow" id="admin-premium-users">0</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page" id="page-admin-users">
+        <div class="page-header">
+          <div>
+            <div class="page-title" data-i18n="admin_page_users">Utilizatori</div>
+            <div class="page-subtitle" data-i18n="admin_subtitle_users">Drepturi și tipuri de cont</div>
+          </div>
+        </div>
+
+        <article class="card">
+          <div id="admin-users-list"></div>
+        </article>
       </section>
     </main>
   </div>
@@ -443,7 +527,10 @@
 
         <div class="form-group">
           <label class="form-label" for="tx-category" data-i18n="field_category">Categorie</label>
-          <select class="form-select" id="tx-category"></select>
+          <div class="select-with-action">
+            <select class="form-select" id="tx-category"></select>
+            <button class="select-action-btn" type="button" data-action="quick-add-category" data-select-id="tx-category" data-type-source="tx-type" data-i18n-title="btn_add_category">+</button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -470,7 +557,10 @@
         <input type="hidden" id="budget-edit-category">
         <div class="form-group">
           <label class="form-label" for="budget-cat" data-i18n="field_category">Categorie</label>
-          <select class="form-select" id="budget-cat"></select>
+          <div class="select-with-action">
+            <select class="form-select" id="budget-cat"></select>
+            <button class="select-action-btn" type="button" data-action="quick-add-category" data-select-id="budget-cat" data-category-type="expense" data-i18n-title="btn_add_category">+</button>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="budget-limit" data-i18n="field_monthly_limit">Limită lunară</label>
@@ -529,6 +619,91 @@
         <div class="form-actions">
           <button class="btn btn-secondary" type="button" data-close-modal="goal-modal" data-i18n="cancel">Anulează</button>
           <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="liability-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="liability-modal-title">Obligație nouă</div>
+        <button class="modal-close" type="button" data-close-modal="liability-modal">✕</button>
+      </div>
+
+      <form id="liability-form">
+        <input type="hidden" id="liability-edit-id">
+
+        <div class="form-group">
+          <label class="form-label" for="liability-counterparty" data-i18n="field_counterparty">Persoană / organizație</label>
+          <input type="text" class="form-input" id="liability-counterparty" data-i18n-placeholder="placeholder_counterparty" placeholder="De exemplu: Alexei sau Bancă">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="liability-amount" data-i18n="field_amount">Sumă</label>
+            <input type="number" class="form-input" id="liability-amount" min="0" step="0.01" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="liability-currency" data-i18n="field_currency_code">Monedă</label>
+            <select class="form-select" id="liability-currency"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="liability-type" data-i18n="field_liability_type">Tip</label>
+            <select class="form-select" id="liability-type"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="liability-due-date" data-i18n="field_due_date">Până la</label>
+            <input type="date" class="form-input" id="liability-due-date">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="liability-comment" data-i18n="field_comment">Comentariu</label>
+          <input type="text" class="form-input" id="liability-comment" data-i18n-placeholder="placeholder_comment" placeholder="Detalii opționale">
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="liability-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="liability-settle-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="modal_settle_liability">Stinge obligația</div>
+        <button class="modal-close" type="button" data-close-modal="liability-settle-modal">✕</button>
+      </div>
+
+      <form id="liability-settle-form">
+        <input type="hidden" id="liability-settle-id">
+        <p class="settings-note" id="liability-settle-prompt"></p>
+
+        <div class="form-group">
+          <label class="form-label" for="liability-settle-account" data-i18n="field_settlement_account">Cont de decontare</label>
+          <select class="form-select" id="liability-settle-account"></select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="liability-settle-amount" data-i18n="field_amount">Sumă</label>
+            <input type="text" class="form-input" id="liability-settle-amount" readonly>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="liability-settle-date" data-i18n="field_date">Dată</label>
+            <input type="date" class="form-input" id="liability-settle-date">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="liability-settle-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="btn_settle">Stinge</button>
         </div>
       </form>
     </div>
@@ -664,7 +839,10 @@
 
         <div class="form-group">
           <label class="form-label" for="account-expense-category" data-i18n="field_category">Categorie</label>
-          <select class="form-select" id="account-expense-category"></select>
+          <div class="select-with-action">
+            <select class="form-select" id="account-expense-category"></select>
+            <button class="select-action-btn" type="button" data-action="quick-add-category" data-select-id="account-expense-category" data-category-type="expense" data-i18n-title="btn_add_category">+</button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -713,7 +891,10 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="goal-spend-category" data-i18n="field_category">Categorie</label>
-            <select class="form-select" id="goal-spend-category"></select>
+            <div class="select-with-action">
+              <select class="form-select" id="goal-spend-category"></select>
+              <button class="select-action-btn" type="button" data-action="quick-add-category" data-select-id="goal-spend-category" data-category-type="expense" data-i18n-title="btn_add_category">+</button>
+            </div>
           </div>
         </div>
 
@@ -748,6 +929,83 @@
         <div class="form-actions">
           <button class="btn btn-secondary" type="button" data-close-modal="confirm-modal" data-i18n="cancel">Anulează</button>
           <button class="btn btn-secondary danger-btn" id="confirm-action-button" type="submit">Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="category-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="category-modal-title">Categorie nouă</div>
+        <button class="modal-close" type="button" data-close-modal="category-modal">✕</button>
+      </div>
+
+      <form id="category-form">
+        <input type="hidden" id="category-edit-id">
+        <input type="hidden" id="category-source-select">
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="category-name" data-i18n="field_category_name">Denumire categorie</label>
+            <input type="text" class="form-input" id="category-name" data-i18n-placeholder="placeholder_category_name" placeholder="De exemplu: Reparații">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="category-type" data-i18n="field_category_type">Tip categorie</label>
+            <select class="form-select" id="category-type">
+              <option value="expense" data-i18n="transaction_expense">Cheltuială</option>
+              <option value="income" data-i18n="transaction_income">Venit</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-note" id="category-matches"></div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary danger-btn hidden" id="category-delete-button" type="button" data-i18n="action_delete">Șterge</button>
+          <button class="btn btn-secondary" type="button" data-close-modal="category-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="admin-user-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" data-i18n="admin_modal_user">Utilizator</div>
+        <button class="modal-close" type="button" data-close-modal="admin-user-modal">✕</button>
+      </div>
+
+      <form id="admin-user-form">
+        <input type="hidden" id="admin-user-id">
+
+        <div class="form-group">
+          <label class="form-label" for="admin-user-email">Email</label>
+          <input type="email" class="form-input" id="admin-user-email" readonly>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-user-name" data-i18n="field_name">Prenume</label>
+          <input type="text" class="form-input" id="admin-user-name">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="admin-user-billing" data-i18n="field_billing">Tip cont</label>
+          <select class="form-select" id="admin-user-billing">
+            <option value="regular" data-i18n="billing_regular">Obișnuit</option>
+            <option value="premium" data-i18n="billing_premium">Premium</option>
+          </select>
+        </div>
+
+        <label class="checkbox-inline">
+          <input type="checkbox" id="admin-user-is-admin">
+          <span data-i18n="field_is_admin">Admin</span>
+        </label>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" type="button" data-close-modal="admin-user-modal" data-i18n="cancel">Anulează</button>
+          <button class="btn btn-primary" type="submit" data-i18n="save">Salvează</button>
         </div>
       </form>
     </div>
