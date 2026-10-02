@@ -1,0 +1,15 @@
+{
+  "profile":{"id":"11111111-1111-4111-8111-111111111111","email":"example@invalid.test","fullName":"Example","language":"ru","currency":"MDL","billing":"premium","isAdmin":true},
+  "accounts":[
+    {"id":"22222222-2222-4222-8222-222222222222","name":"MAIB","type":"regular","currencyCode":"MDL","openingBalance":1000.25,"includeInTotal":true,"createdAt":"2026-09-01T00:00:00Z"},
+    {"id":"33333333-3333-4333-8333-333333333333","name":"Savings","type":"savings","currencyCode":"USD","openingBalance":0,"includeInTotal":true,"createdAt":"2026-09-01T00:00:00Z"}
+  ],
+  "categories":[],
+  "transactions":[
+    {"id":"44444444-4444-4444-8444-444444444444","type":"income","amount":1000.00,"convertedAmount":null,"exchangeRate":null,"desc":"Salary","date":"2026-10-01","category":"salary","accountId":"22222222-2222-4222-8222-222222222222","fromAccountId":"","toAccountId":"","currencyCode":"MDL","convertedCurrencyCode":"","goalId":""},
+    {"id":"55555555-5555-4555-8555-555555555555","type":"exchange","amount":1800,"convertedAmount":100,"exchangeRate":17.5,"desc":"Savings","date":"2026-10-02","category":"","accountId":"","fromAccountId":"22222222-2222-4222-8222-222222222222","toAccountId":"33333333-3333-4333-8333-333333333333","currencyCode":"MDL","convertedCurrencyCode":"USD","goalId":""},
+    {"id":"66666666-6666-4666-8666-666666666666","type":"expense","amount":50.25,"convertedAmount":null,"exchangeRate":null,"desc":"Deleted category","date":"2026-10-02","category":"custom_removed","accountId":"22222222-2222-4222-8222-222222222222","fromAccountId":"","toAccountId":"","currencyCode":"MDL","convertedCurrencyCode":"","goalId":""}
+  ],
+  "goals":[{"id":"77777777-7777-4777-8777-777777777777","name":"Travel","target":100,"saved":0,"icon":"🎯","deadline":null,"currencyCode":"USD","savingsAccountId":"33333333-3333-4333-8333-333333333333","status":"reached","completedAt":null}],
+  "liabilities":[],"budgets":{"food":500}
+}

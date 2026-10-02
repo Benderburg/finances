@@ -1,0 +1,51 @@
+name: Norocel 2
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: local-norocel-only
+          MYSQL_DATABASE: norocel_test
+        ports: [33067:3306]
+        options: --health-cmd="mysqladmin ping -h localhost -plocal-norocel-only" --health-interval=5s --health-timeout=3s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath, pdo_mysql, intl, mbstring
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: composer install --no-interaction --prefer-dist
+        working-directory: backend
+      - run: cp .env.example.norocel .env && php artisan key:generate && php artisan test --compact
+        working-directory: backend
+      - run: npm ci && npm run build && npm test
+        working-directory: frontend
+      - run: php artisan migrate --force && php artisan norocel:local-user dev@norocel.test --name='Local Preview' --admin && php artisan serve --host=127.0.0.1 --port=8000 > /tmp/norocel-server.log 2>&1 &
+        working-directory: backend
+        env:
+          DB_DATABASE: norocel_test
+          NOROCEL_LOCAL_PASSWORD: local-testing-123
+      - run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/up; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/norocel-server.log
+          exit 1
+      - run: npx playwright install --with-deps chromium && npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-qa
+          path: |
+            frontend/test-results
+            frontend/playwright-report

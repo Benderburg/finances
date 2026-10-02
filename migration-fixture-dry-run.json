@@ -1,0 +1,128 @@
+{
+    "run_id": "6c9daf3a-baef-449a-92cf-f415d3c9996e",
+    "source_commit": "25d3a31",
+    "live_source_verified": false,
+    "blockers": [],
+    "source_sha256": "a516c2fd6a61d4f37b7596b02149669d59e1093d4b3c76f1f66c8c7d373f5f14",
+    "warnings": [
+        {
+            "code": "LEGACY_PROFILE_FIELD_IGNORED",
+            "field": "email"
+        },
+        {
+            "code": "LEGACY_PROFILE_FIELD_IGNORED",
+            "field": "billing"
+        },
+        {
+            "code": "LEGACY_PROFILE_FIELD_IGNORED",
+            "field": "isAdmin"
+        },
+        {
+            "code": "LEGACY_PROFILE_FIELD_IGNORED",
+            "field": "id"
+        },
+        {
+            "code": "LEGACY_PROFILE_FIELD_IGNORED",
+            "field": "fullName"
+        },
+        {
+            "code": "FX_METADATA_NORMALIZED",
+            "operation_id": "55555555-5555-4555-8555-555555555555",
+            "original_type": "exchange",
+            "original_rate": "17.5",
+            "effective_rate": "18.000000000000"
+        },
+        {
+            "code": "ARCHIVED_CATEGORY_PLACEHOLDER",
+            "kind": "expense",
+            "key": "custom_removed"
+        },
+        {
+            "code": "LEGACY_BUDGET_ASSUMPTION",
+            "month": "2026-10",
+            "currency_code": "MDL"
+        }
+    ],
+    "account_reconciliation": [
+        {
+            "account_id": "22222222-2222-4222-8222-222222222222",
+            "currency_code": "MDL",
+            "balance_minor": "15000",
+            "source_balance_minor": "15000",
+            "delta_minor": "0"
+        },
+        {
+            "account_id": "33333333-3333-4333-8333-333333333333",
+            "currency_code": "USD",
+            "balance_minor": "10000",
+            "source_balance_minor": "10000",
+            "delta_minor": "0"
+        }
+    ],
+    "manifest": {
+        "counts": {
+            "accounts": 2,
+            "categories": 16,
+            "goals": 1,
+            "operations": 3,
+            "operation_revisions": 0,
+            "budget_templates": 1,
+            "budgets": 1,
+            "liabilities": 0,
+            "liability_settlements": 0
+        },
+        "balances": [
+            {
+                "account_id": "22222222-2222-4222-8222-222222222222",
+                "currency_code": "MDL",
+                "balance_minor": "15000"
+            },
+            {
+                "account_id": "33333333-3333-4333-8333-333333333333",
+                "currency_code": "USD",
+                "balance_minor": "10000"
+            }
+        ],
+        "warnings": [],
+        "blockers": []
+    },
+    "operation_counts_by_type": {
+        "income": 1,
+        "exchange": 1,
+        "expense": 1
+    },
+    "monthly_cash_flow": {
+        "2026-10:MDL:income": "100000",
+        "2026-10:MDL:expense": "5025"
+    },
+    "transfer_sides": [
+        {
+            "id": "55555555-5555-4555-8555-555555555555",
+            "revision": 1,
+            "created_at": "2026-10-02T13:39:41+00:00",
+            "updated_at": "2026-10-02T13:39:41+00:00",
+            "type": "exchange",
+            "status": "posted",
+            "occurred_on": "2026-10-02",
+            "description": "Savings",
+            "amount_minor": "180000",
+            "currency_code": "MDL",
+            "account_id": null,
+            "from_account_id": "22222222-2222-4222-8222-222222222222",
+            "to_account_id": "33333333-3333-4333-8333-333333333333",
+            "target_amount_minor": "10000",
+            "target_currency_code": "USD",
+            "category_id": null,
+            "goal_id": null,
+            "goal_completion_requested": false,
+            "quoted_rate": null,
+            "effective_rate": "18.000000000000",
+            "voided_at": null,
+            "legacy_metadata": {
+                "original_type": "exchange",
+                "original_rate": "17.5"
+            }
+        }
+    ],
+    "mode": "dry-run"
+}

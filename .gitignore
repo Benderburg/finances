@@ -1,3 +1,13 @@
 .idea
-package-lock.json
 /node_modules/
+**/node_modules/
+/.runtime/
+/frontend/dist/
+/backend/public/build/
+**/test-results/
+**/playwright-report/
+**/deployment-test-results/
+**/recovery-test-results/
+**/*.tsbuildinfo
+**/tests-output.txt
+**/migration-output.txt
