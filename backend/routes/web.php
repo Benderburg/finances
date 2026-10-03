@@ -7,6 +7,17 @@ use App\Http\Requests\CommandRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Shared hosting can cache static files for a year. With the public copies
+// removed, these URLs pass through Laravel and retain revalidation headers.
+foreach (['sw.js' => 'application/javascript', 'manifest.webmanifest' => 'application/manifest+json'] as $asset => $type) {
+    Route::get($asset, function () use ($asset, $type) {
+        $file = is_file(public_path($asset)) ? public_path($asset) : resource_path('pwa/'.$asset);
+        abort_unless(is_file($file), 503);
+
+        return response()->file($file, ['Content-Type' => $type, 'Cache-Control' => 'no-cache', 'Service-Worker-Allowed' => '/']);
+    })->withoutMiddleware('web');
+}
+
 Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);

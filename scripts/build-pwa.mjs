@@ -1,10 +1,12 @@
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, copyFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const publicDir = join(root, "backend/public");
+const pwaDir = join(root, "backend/resources/pwa");
+mkdirSync(pwaDir, { recursive: true });
 const html = readFileSync(join(publicDir, "build/index.html"), "utf8");
 const version = createHash("sha256").update(html).digest("hex").slice(0, 16);
 const assets = readdirSync(join(publicDir, "build/assets")).map(
@@ -34,3 +36,5 @@ self.addEventListener('fetch',event=>{
 `,
 );
 console.log("PWA static shell " + version);
+copyFileSync(join(publicDir, "sw.js"), join(pwaDir, "sw.js"));
+copyFileSync(join(publicDir, "manifest.webmanifest"), join(pwaDir, "manifest.webmanifest"));

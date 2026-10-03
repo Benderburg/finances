@@ -1,6 +1,6 @@
 # Norocel 2 — приёмка этапа A
 
-Дата локальной проверки: **2026-10-02**. Исходник: `Benderburg/finances`, `master@25d3a31`; рабочая ветка: `norocel-2`. Старое приложение сохранено. Все проверки и импорты выполнены на фиктивных пользователях и отдельных локальных MySQL-базах.
+Дата проверки и выпуска: **2026-10-03**. Исходник: `Benderburg/finances`, `master@25d3a31`; рабочая ветка: `norocel-2`. Старый код сохранён в Git. Автоматические проверки и импорты выполнены на фиктивных пользователях и отдельных локальных MySQL-базах. Новая версия развёрнута на **https://norocel.noros.net/** чистой установкой, как разрешил пользователь.
 
 ## Реализовано и проверено
 
@@ -27,16 +27,16 @@
 
 | Проверка | Результат |
 |---|---|
-| `php artisan test --compact` | **28 passed, 239 assertions**; MySQL 8.4.11/InnoDB, отдельная `norocel_test` |
+| `php vendor/bin/phpunit -c phpunit.timeweb.xml` | **31 passed, 268 assertions**; PHP 8.5.11, MySQL 8.4.11/InnoDB, отдельная `norocel_test`; включает bootstrap владельца и публичные PWA routes |
 | `npm run build` | Успешно: strict TypeScript + Vite production build + PWA shell |
 | `npm test` | **4 passed**: точные суммы, округление/границы, форматирование, справочник более 100 записей |
-| `npx playwright test` | **10 passed**, 2 deployment cases пропущены намеренно: отдельный smoke ниже; desktop + mobile, итоговая сборка |
-| PHP-FPM + Nginx smoke | **1 passed** на localhost:8085: `/up`, запрет `.env`, SW no-cache, CSRF/session login, API no-store, refresh `/reports` |
+| `NOROCEL_QA_URL=http://127.0.0.1:8001`, deployment QA | **12 passed**, без пропусков; desktop + mobile, PHP 8.5/FPM + Nginx, полный auth/finance/offline/update цикл |
+| Production на Timeweb | PHP 8.5.8, Percona/MySQL 8.4.11; HTTPS, `/up`, login/logout и `/admin`, deep-link reload, Secure/HttpOnly session, `.env` 403, API 401/no-store, SW и manifest 200/no-cache |
 | Composer | Lockfile валиден, route cache собирается; `composer audit`: 0 advisories |
 | npm | `npm ci` воспроизводим; `npm audit`: 0 vulnerabilities на дату проверки |
 | Fixture migration | Dry-run → apply → replay; 3 операции, delta обоих счетов **0**, replay без дублей |
 
-PHP CLI: 8.2.12; контейнер PHP-FPM: 8.2.34; Node: 22.14.0. Проверки зависят от lockfiles. Аудиты зависимостей отражают дату проверки, а не постоянную гарантию. GitHub Actions настроен, но удалённый CI в этой работе не запускался.
+Первичная проверка 2026-10-02 использовала PHP CLI 8.2.12 и FPM 8.2.34; повторная полная проверка 2026-10-03 — PHP 8.5.11/FPM и MySQL 8.4.11. Production CLI и web PHP — 8.5.8. Node: 22.14.0. Проверки зависят от lockfiles. Аудиты зависимостей отражают дату 2026-10-02, а не постоянную гарантию. GitHub Actions настроен для PHP 8.2/8.5, но удалённый CI в этой работе не запускался.
 
 ## Browser QA и практические пределы
 
@@ -48,19 +48,21 @@ Service worker действительно установлен и контрол
 
 Ограничения импорта: 10 MiB, 50 000 операций, 100 000 строк документа. Проверены валидация и атомарность на fixtures; нагрузочный benchmark максимального документа на целевом сервере не выполнялся. Скорость Windows bind mounts локального Docker не является оценкой production latency.
 
-## Перед выпуском на настоящий хостинг
+## Выпуск на Timeweb и оставшиеся проверки
 
 - [x] Код A, migrations, CLI, API, UI, PWA, lockfiles и инструкции подготовлены.
 - [x] Финансовая атомарность, ownership, retry/generation, MySQL concurrency и fixture reconciliation проверены.
 - [x] Локальная репетиция PHP-FPM/Nginx выполнена; production Node process не требуется.
-- [ ] Уточнить фактический provider, PHP/MySQL, document root, SSH/release и persistent storage; проверить конкретный staging-хост.
-- [ ] Проверить HTTPS, Secure cookies, reverse proxy и SMTP verification/reset/email-change на согласованном тестовом адресе.
-- [ ] Получить real server snapshot + real user JSON; сверить schema, UUID/roles, все суммы/валюты/связи и нулевые balance deltas каждого владельца.
-- [ ] Проверить предупреждения/блокеры, повтор импорта, сохранение ID mapping и восстановление полной staging DB из backup.
+- [x] Подтверждены Timeweb shared hosting, PHP 8.5.8, Percona/MySQL 8.4.11, отдельная `ck85651_norocel`, закрытый backend и `public_html` → `backend/public`.
+- [x] Проверены HTTPS, Secure/HttpOnly/SameSite session, API no-store, защита `.env`, вход/выход и админка владельца `fritz@noros.net`.
+- [x] Исправлена годовая кешируемость статических PWA-файлов Timeweb: Laravel routes обслуживают SW/manifest без сессионных cookies, с правильным MIME и no-cache.
+- [x] По разрешению пользователя выполнена чистая установка без переноса старых данных и исходного backup. Старый document root и временные приватные архивы удалены после проверки. Соседний `noros.net` отвечает HTTP 200.
+- [ ] Проверить доставку verification/reset/email-change на согласованном адресе: настроен Exim/sendmail, реальные письма не отправлялись.
+- [ ] Для будущего переноса сохранённых данных выполнить реальную сверку и recovery по `MIGRATION_REPORT.md`; текущий выпуск использует согласованную пустую базу.
 - [ ] Проверить физический мобильный браузер, клавиатуру, safe areas и установку PWA; при необходимости провести benchmark максимального import.
-- [ ] Владелец принимает проверяемый staging-результат и отдельно согласует cutover, freeze старых записей, rollback и onboarding.
+- [x] Пользователь отдельно разрешил замену прототипа на Timeweb и указал email первого администратора; создание выполнено без рассылки onboarding.
 
-Рабочая Supabase-база не читалась и не изменялась, реальные письма не отправлялись. Production migration/cutover, удаление старой версии и проверка конкретного хостинга **не выполнены**. Порядок дальнейших действий: `MIGRATION_REPORT.md` и `RUNBOOK.md`.
+Рабочая Supabase-база не читалась и не изменялась. На новом сайте один подтверждённый администратор, Main account с нулевым остатком и 15 системных категорий; старые Supabase-пароли и сессии не переносятся. Пароли и APP_KEY находятся вне Git. Процедура следующего выпуска: `docs/TIMEWEB_DEPLOYMENT.md` и `RUNBOOK.md`; историческая репетиция миграции — `MIGRATION_REPORT.md`.
 
 ## Следующий инкремент B
 

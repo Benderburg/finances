@@ -3,6 +3,8 @@ import { test, expect, type Page } from "@playwright/test";
 
 const mailbox = () =>
   readFileSync("../backend/storage/logs/laravel.log", "utf8");
+const mailOrigin = (process.env.NOROCEL_QA_URL ?? "http://127.0.0.1:8000")
+  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -31,7 +33,7 @@ test("register, email verification, income, expense, password reset and user iso
   ).toBeVisible();
   const me = await (await page.request.get("/api/v1/me")).json();
   const pattern = new RegExp(
-    "http://127\\.0\\.0\\.1:8000/auth/verify-email/" +
+    mailOrigin + "/auth/verify-email/" +
       me.data.user.id +
       "/[^\\s<>()]+",
   );
@@ -85,8 +87,7 @@ test("register, email verification, income, expense, password reset and user iso
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Trimite link", exact: true }).click();
   await expect(page.locator(".success")).toBeVisible();
-  const resetPattern =
-    /http:\/\/127\.0\.0\.1:8000\/reset-password\?[^\s<>()]+/g;
+  const resetPattern = new RegExp(mailOrigin + "/reset-password\\?[^\\s<>()]+", "g");
   const link = mailbox().match(resetPattern)?.at(-1);
   expect(link).toBeTruthy();
   await page.goto(link!.replaceAll("&amp;", "&"));

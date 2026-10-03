@@ -8,7 +8,7 @@ BNM reference rates и CSV относятся к этапу B. Для них д�
 
 ## Локальный запуск
 
-Нужны PHP 8.2 с PDO MySQL, BCMath, intl, mbstring, Composer, Node 22.14+ и Docker Desktop. Команды ниже выполняются в PowerShell из корня checkout. Docker содержит только тестовую базу; указанный пароль предназначен для localhost.
+Нужны PHP 8.2–8.5 с PDO MySQL, BCMath, intl, mbstring, Composer, Node 22.14+ и Docker Desktop. Команды ниже выполняются в PowerShell из корня checkout. Docker содержит только тестовую базу; указанный пароль предназначен для localhost.
 
 ```powershell
 docker compose up -d mysql
@@ -30,7 +30,7 @@ php artisan serve --host=127.0.0.1 --port=8000
 
 Открыть `http://127.0.0.1:8000`. Тестовый вход: `dev@norocel.test` / `local-testing-123`. Команда создания тестового пользователя запрещена в production. `.env` и зависимости исключены из Git. Не перезаписывайте существующий `.env` при повторном запуске и не меняйте существующий `APP_KEY`.
 
-При разработке можно отдельно запустить `npm run dev` из `frontend/` и открыть `http://127.0.0.1:5173`: Vite проксирует `/api`, `/auth`, `/sanctum` на 8000. PWA проверяется на собранной версии через 8000. В dev письма записываются в `backend/storage/logs/laravel.log`; SMTP не используется. Для обычной регистрации откройте ссылку подтверждения из журнала. В production нужен работающий SMTP.
+При разработке можно отдельно запустить `npm run dev` из `frontend/` и открыть `http://127.0.0.1:5173`: Vite проксирует `/api`, `/auth`, `/sanctum` на 8000. PWA проверяется на собранной версии через 8000. В dev письма записываются в `backend/storage/logs/laravel.log`; SMTP не используется. Для обычной регистрации откройте ссылку подтверждения из журнала. В production нужен работающий SMTP или поддерживаемый хостингом sendmail; на Timeweb настроен Exim, доставка пока не проверена.
 
 Локальная проверка deployment через PHP-FPM/Nginx после установки зависимостей и сборки:
 
@@ -66,4 +66,4 @@ php artisan norocel:migrate tests/fixtures/legacy-workspace.json --user=DESTINAT
 
 Повтор того же source SHA-256 не создаёт дубли. Без `--apply` финансовые данные не изменяются. Для серверного экспорта нужен `--source-user=SOURCE_UUID`. Права и пароли не переносятся из пользовательского JSON. Отдельная CLI `norocel:identities` принимает только доверенный серверный файл; она сохраняет UUID, не переносит пароль Supabase и не отправляет письма. Подробности и расхождения — в [MIGRATION_REPORT.md](MIGRATION_REPORT.md).
 
-Документы: [домен](NOROCEL_DOMAIN_SPEC.md), [API и JSON](API_CONTRACT.md), [QA и чеклист](RELEASE_CHECKLIST.md), [запуск, cutover, rollback](RUNBOOK.md). Реальный экспорт и доступ к целевому хостингу не предоставлены: проверка production-данных и конкретного хостинга остаётся условием выпуска. Физические Safari/iOS/Android устройства не проверялись.
+Документы: [домен](NOROCEL_DOMAIN_SPEC.md), [API и JSON](API_CONTRACT.md), [QA и чеклист](RELEASE_CHECKLIST.md), [запуск, cutover, rollback](RUNBOOK.md), [Timeweb / PHP 8.5](docs/TIMEWEB_DEPLOYMENT.md). 2026-10-03 пользователь разрешил чистую установку на `norocel.noros.net` без переноса данных и бекапа исходного прототипа. Физические Safari/iOS/Android устройства не проверялись.

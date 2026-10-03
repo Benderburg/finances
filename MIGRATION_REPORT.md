@@ -1,5 +1,7 @@
 # Migration rehearsal — 2026-10-02
 
+**Release update, 2026-10-03:** the user explicitly authorized a fresh installation on Timeweb at https://norocel.noros.net/ without old-data import or a source backup. That installation is complete, with a newly verified first administrator and an empty ledger. The old document root and temporary deployment archives were removed; the legacy code remains in Git. This changes the release path, not the fixture evidence below. Supabase data and credentials were not read or altered. See `docs/TIMEWEB_DEPLOYMENT.md` and `RELEASE_CHECKLIST.md` for deployment evidence and remaining mail/device checks.
+
 ## Evidence and scope
 
 Repository source: `Benderburg/finances`, `master` commit `25d3a31`, matching the supplied audit. Legacy source files retained. No live Supabase connection, real server export or real user JSON was supplied. **Production balances, live schema and real identity counts have not been verified.** The results below are a local MySQL 8.4 rehearsal with explicit fixtures, not a production migration report.

@@ -4,6 +4,7 @@
 /.runtime/
 /frontend/dist/
 /backend/public/build/
+/backend/resources/pwa/
 **/test-results/
 **/playwright-report/
 **/deployment-test-results/

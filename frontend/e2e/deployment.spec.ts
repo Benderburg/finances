@@ -9,7 +9,7 @@ test("PHP-FPM Nginx deployment serves deep links, sessions, CSRF and built asset
     "Separate local Docker deployment smoke test",
   );
   test.setTimeout(120000);
-  const base = "http://127.0.0.1:8085";
+  const base = process.env.NOROCEL_QA_URL ?? "http://127.0.0.1:8085";
   expect((await request.get(base + "/up")).status()).toBe(200);
   expect((await request.get(base + "/.env")).status()).toBe(403);
   expect(

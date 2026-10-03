@@ -8,7 +8,7 @@ Local profile `docker compose --profile web up -d --build` checks PHP-FPM/Nginx 
 
 ## Host preparation and release
 
-The actual host/provider/PHP/MySQL/SSH/document-root capabilities have not been supplied. Confirm these before selecting its deployment path. Serve only `backend/public`; neither project root nor `.env`/storage/vendor should be web-accessible. Nginx uses `try_files` to index.php; shared Apache can use `backend/public/.htaccess` with mod_rewrite and an isolated document root. Keep code immutable per release, writable private storage/bootstrap cache, and durable MySQL, sessions and prior restore backups. No production Node process is required.
+The selected target is Timeweb shared hosting, PHP8.5 and MySQL8.4. See [TIMEWEB_DEPLOYMENT.md](docs/TIMEWEB_DEPLOYMENT.md) for verified paths and the authorized fresh installation. Serve only `backend/public`; neither project root nor `.env`/storage/vendor should be web-accessible. Nginx uses `try_files` to index.php; shared Apache can use `backend/public/.htaccess` with mod_rewrite and an isolated document root. Keep code immutable per release, writable private storage/bootstrap cache, and durable MySQL, sessions and prior restore backups. No production Node process is required.
 
 Prepare an isolated staging release with `composer install --no-dev --prefer-dist --optimize-autoloader`, built frontend, locked code and a separate DB/user. Use a least-privilege runtime DB user; migrations use a separate operator credential. Set:
 
@@ -50,7 +50,7 @@ The automated local deployment smoke uses `NOROCEL_DEPLOYMENT_QA=1` and `npx pla
 
 ## Separately approved migration/cutover
 
-This development request does not authorize production cutover, source deletion or mail to real users. Prepare the following concrete artifacts for that later run:
+On 2026-10-03 the user authorized replacing the prototype on Timeweb with a fresh database, without importing old data or taking a source backup. See the Timeweb procedure above. The following retained-data migration procedure applies only to a later migration request; sending mail to real users still requires explicit instructions:
 
 1. Obtain a consistent Supabase financial/auth snapshot and a real user JSON. Record commit, export timestamps, SHA-256, source schema and counts. Retain encrypted originals with access controls; keep service-role keys server-side.
 2. Create the **new isolated staging DB**. Import reviewed trusted identities with stable UUIDs, then per-owner finance dry-runs. Specify the budget month/currency from evidence; inspect every warning/blocker and mapping. Apply only on staging; compare all balance deltas, original transfer sides, monthly per-currency cash flow, goals and settlements. Repeat the same source apply to prove no duplicates.
