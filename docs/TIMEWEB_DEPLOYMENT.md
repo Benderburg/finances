@@ -42,8 +42,9 @@ docker compose -p norocel-timeweb-qa -f compose.timeweb-qa.yaml exec -T php-time
 docker compose -p norocel-timeweb-qa -f compose.timeweb-qa.yaml exec -T -e NOROCEL_LOCAL_PASSWORD=local-testing-123 php-timeweb php artisan norocel:local-user dev@norocel.test --name='Local Preview' --admin
 $env:NOROCEL_QA_URL='http://127.0.0.1:8001'
 $env:NOROCEL_DEPLOYMENT_QA='1'
+$env:NOROCEL_E2E_RESET_CACHE='1'
 Set-Location frontend
 npm run test:e2e
 ```
 
-PHPUnit переопределяет `$_ENV` и `$_SERVER`; TestCase до очистки данных требует `APP_ENV=testing` и базу `norocel_test`. Тесты не запускаются на Timeweb. QA-пароль предназначен только для локальной базы. CI проверяет PHP 8.2 и 8.5.
+PHPUnit переопределяет `$_ENV` и `$_SERVER`; TestCase до очистки данных требует `APP_ENV=testing` и базу `norocel_test`. Тесты не запускаются на Timeweb. QA-пароль предназначен только для локальной базы. CI проверяет PHP 8.2 и 8.5. `NOROCEL_E2E_RESET_CACHE=1` очищает локальный cache перед каждым браузерным сценарием через native PHP, чтобы быстрые тесты не накапливали общие auth limits. Fixture допускает только `127.0.0.1` и `.env` с `APP_ENV=local`; production limits остаются прежними.

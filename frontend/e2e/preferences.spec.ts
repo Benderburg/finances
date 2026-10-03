@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures";
 
 async function settings(page: Page, body: Record<string, string>) {
   const status = await page.evaluate(async (body) => {

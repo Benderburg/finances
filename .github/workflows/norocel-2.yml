@@ -45,6 +45,8 @@ jobs:
           exit 1
       - run: npx playwright install --with-deps chromium && npm run test:e2e
         working-directory: frontend
+        env:
+          NOROCEL_E2E_RESET_CACHE: '1'
       - uses: actions/upload-artifact@v4
         if: always()
         with:

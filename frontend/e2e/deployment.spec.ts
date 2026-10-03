@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test("PHP-FPM Nginx deployment serves deep links, sessions, CSRF and built assets", async ({
   page,

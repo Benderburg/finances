@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "./fixtures";
 
 const mailbox = () =>
   readFileSync("../backend/storage/logs/laravel.log", "utf8");

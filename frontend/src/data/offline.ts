@@ -57,6 +57,7 @@ export async function loadSummary(user: string): Promise<Summary | undefined> {
   return result;
 }
 export async function clearSummaries() {
+  localStorage.removeItem("norocel-summary-owner");
   const db = await database();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction("summaries", "readwrite");
@@ -65,5 +66,4 @@ export async function clearSummaries() {
     tx.onerror = () => reject(tx.error);
   });
   db.close();
-  localStorage.removeItem("norocel-summary-owner");
 }
