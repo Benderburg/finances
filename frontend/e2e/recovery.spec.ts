@@ -8,7 +8,9 @@ async function login(page: Page) {
   await page
     .getByRole("button", { name: "Autentificare", exact: true })
     .click();
-  await expect(page.locator(".balance-card")).toHaveCount(4);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4);
 }
 test("lost command response retries the same key once and expired session closes workspace", async ({
   page,
@@ -62,7 +64,9 @@ test("lost command response retries the same key once and expired session closes
   await expect(
     page.getByRole("button", { name: "Autentificare", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".balance-card")).toHaveCount(0);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(() => localStorage.getItem("norocel-summary-owner")),
   ).toBeNull();
@@ -99,7 +103,9 @@ test("PWA update waits for confirmation and then activates", async ({
         exact: true,
       })
       .click();
-    await expect(page.locator(".balance-card")).toHaveCount(4);
+    await expect(
+      page.locator(".currency-balance, .offline-screen .balance-card"),
+    ).toHaveCount(4);
     await expect(
       page.getByText("O versiune nouă este disponibilă"),
     ).toHaveCount(0);

@@ -3,6 +3,207 @@ import type { Category, Locale } from "./domain/types";
 
 // Each entry contains Romanian, Russian and English; user-entered text is never translated.
 const copy: Record<string, [string, string, string]> = {
+  estimateHint: [
+    "Evaluare la cursurile BNM",
+    "Оценка по курсам BNM",
+    "Estimated using BNM rates",
+  ],
+  progressLabel: ["Progres", "Прогресс", "Progress"],
+  status: ["Stare", "Статус", "Status"],
+  unknownResult: [
+    "Rezultatul nu este încă cunoscut. Reîncearcă aceeași cerere.",
+    "Результат пока неизвестен. Повторите тот же запрос.",
+    "The result is not yet known. Retry the same request.",
+  ],
+  createBudget: ["Creează un buget", "Создать бюджет", "Create a budget"],
+  createDebt: ["Adaugă o datorie", "Добавить долг", "Add a debt"],
+  yourFinances: ["Finanțele tale", "Ваши финансы", "Your finances"],
+  financeTagline: [
+    "Mai multă claritate. Mai multă libertate.",
+    "Больше ясности. Больше свободы.",
+    "More clarity. More freedom.",
+  ],
+  dashboardHint: [
+    "O privire de ansamblu asupra banilor tăi.",
+    "Всё важное о ваших деньгах — перед вами.",
+    "A little clarity for your everyday finances.",
+  ],
+  myAccounts: ["Conturile mele", "Мои счета", "My accounts"],
+  putAside: ["Pune deoparte", "Отложить", "Set aside"],
+  chooseAction: [
+    "Ce vrei să faci?",
+    "Что хотите записать?",
+    "What would you like to record?",
+  ],
+  chooseActionHint: [
+    "Un pas mic pentru ordine în finanțe.",
+    "Пара касаний — и финансы в порядке.",
+    "A small step toward keeping your money in order.",
+  ],
+  incomeHint: [
+    "Salariu, cadou sau alte venituri",
+    "Зарплата, подарок или другой доход",
+    "Salary, a gift or other money received",
+  ],
+  expenseHint: [
+    "O cumpărătură sau o plată",
+    "Покупку или оплату",
+    "A purchase or a payment",
+  ],
+  transferHint: [
+    "Mută bani între conturile tale",
+    "Переместить деньги между своими счетами",
+    "Move money between your own accounts",
+  ],
+  putAsideHint: [
+    "Alimentează un cont de economii",
+    "Пополнить накопительный счёт",
+    "Add money to a savings account",
+  ],
+  chooseSavings: [
+    "Unde pui deoparte?",
+    "Куда отложить?",
+    "Where are you saving?",
+  ],
+  savingsHint: [
+    "Banii puși deoparte, în moneda lor.",
+    "Деньги на будущее — в исходных валютах.",
+    "Money for your future, in its original currency.",
+  ],
+  goalsHint: [
+    "Planuri mari, pași mici.",
+    "Большие планы складываются из маленьких шагов.",
+    "Big plans start with small steps.",
+  ],
+  accountsHint: [
+    "Fiecare cont, fiecare monedă, la locul ei.",
+    "Каждый счёт и каждая валюта — на своём месте.",
+    "Every account and every currency, in one place.",
+  ],
+  operationsHint: [
+    "Povestea banilor tăi, zi de zi.",
+    "Доходы, расходы и переводы — день за днём.",
+    "Your money story, day by day.",
+  ],
+  reportsHint: [
+    "Vezi obiceiurile din spatele cifrelor.",
+    "Замечайте привычки за цифрами.",
+    "See the habits behind the numbers.",
+  ],
+  monthSummary: [
+    "În luna selectată",
+    "За выбранный месяц",
+    "For the selected month",
+  ],
+  currencyBreakdown: [
+    "Solduri pe valute",
+    "Остатки по валютам",
+    "Balances by currency",
+  ],
+  valuationSettings: [
+    "Cursuri și evaluare",
+    "Курсы и оценка",
+    "Rates and valuation",
+  ],
+  originalCurrencies: [
+    "În monedele conturilor",
+    "В валютах счетов",
+    "In account currencies",
+  ],
+  quickActions: ["Acțiuni rapide", "Быстрые действия", "Quick actions"],
+  dailyActivity: ["Activitate", "История операций", "Activity"],
+  emptyAccounts: [
+    "Primul tău cont te așteaptă",
+    "Начните с первого счёта",
+    "Make room for your first account",
+  ],
+  emptyAccountsHint: [
+    "Adaugă un cont sau numerarul și vezi unde sunt banii tăi.",
+    "Добавьте карту или наличные, чтобы видеть, где ваши деньги.",
+    "Add a cash or bank account to see where your money lives.",
+  ],
+  createAccount: ["Adaugă un cont", "Добавить счёт", "Add an account"],
+  emptyOperations: ["Un început curat", "Пока нет операций", "A fresh start"],
+  emptyOperationsHint: [
+    "Înregistrează un venit sau o cheltuială pentru a începe.",
+    "Запишите первый доход или расход — здесь появится ваша история.",
+    "Record your first income or expense to start your money story.",
+  ],
+  emptyGoals: [
+    "Ce vrei să îndeplinești?",
+    "На что хотите накопить?",
+    "What are you saving for?",
+  ],
+  emptyGoalsHint: [
+    "Creează un obiectiv și urmărește fiecare pas spre el.",
+    "Создайте цель и наблюдайте, как приближается нужная сумма.",
+    "Create a goal and see every small step bring it closer.",
+  ],
+  createGoal: ["Creează un obiectiv", "Создать цель", "Create a goal"],
+  emptySavings: [
+    "Un loc pentru planurile tale",
+    "Место для будущих планов",
+    "A place for future plans",
+  ],
+  emptySavingsHint: [
+    "Adaugă un cont de economii în moneda potrivită ție.",
+    "Создайте накопительный счёт в удобной вам валюте.",
+    "Create a savings account in the currency that works for you.",
+  ],
+  emptyDebts: [
+    "Nicio datorie aici",
+    "Здесь пока нет долгов",
+    "No debts to keep track of",
+  ],
+  emptyDebtsHint: [
+    "Notează ce ai împrumutat sau ce ai de returnat.",
+    "Запишите, кому одолжили или кому нужно вернуть деньги.",
+    "Keep track of money you have lent or need to repay.",
+  ],
+  emptyReports: [
+    "Cifrele prind contur în timp",
+    "Статистика появится со временем",
+    "Your picture builds over time",
+  ],
+  emptyReportsHint: [
+    "Adaugă operațiuni pentru a vedea tendințele.",
+    "Добавляйте операции, чтобы видеть расходы и динамику.",
+    "Record a few operations to see your spending and trends.",
+  ],
+  emptyBudgets: [
+    "Lasă loc pentru ce contează",
+    "Спланируйте расходы",
+    "Make space for what matters",
+  ],
+  emptyBudgetsHint: [
+    "Stabilește o limită lunară pentru o categorie.",
+    "Установите месячный лимит для категории расходов.",
+    "Set a monthly limit for a spending category.",
+  ],
+  noMatches: ["Niciun rezultat", "Ничего не найдено", "No matching operations"],
+  noMatchesHint: [
+    "Încearcă alte filtre.",
+    "Попробуйте изменить или сбросить фильтры.",
+    "Try changing or clearing your filters.",
+  ],
+  clearFilters: ["Resetează filtrele", "Сбросить фильтры", "Clear filters"],
+  confirmAction: [
+    "Confirmă acțiunea",
+    "Подтвердите действие",
+    "Confirm action",
+  ],
+  allDebts: ["Toate datoriile", "Все долги", "All debts"],
+  navigation: ["Navigare", "Навигация", "Navigation"],
+  skipToContent: [
+    "Sari la conținut",
+    "Перейти к содержимому",
+    "Skip to content",
+  ],
+  todayLabel: ["Astăzi", "Сегодня", "Today"],
+  appearance: ["Aspect", "Оформление", "Appearance"],
+  incomeLegend: ["Venituri", "Доходы", "Income"],
+  expenseLegend: ["Cheltuieli", "Расходы", "Expenses"],
+
   fxDisplayCurrency: [
     "Moneda de afișare",
     "Валюта расчёта",

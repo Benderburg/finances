@@ -7,7 +7,9 @@ async function login(page: Page) {
   await page
     .getByRole("button", { name: "Autentificare", exact: true })
     .click();
-  await expect(page.locator(".balance-card")).toHaveCount(4);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4);
 }
 
 async function post(page: Page, path: string, data: unknown) {
@@ -40,15 +42,18 @@ test("RON incomplete valuation and additive CSV with explicit duplicate confirma
   expect(created.ok()).toBeTruthy();
   const account = (await created.json()).data;
   await page.goto("/");
+  await page.getByText("Cursuri și evaluare", { exact: true }).click();
   await page.getByLabel("Data evaluării", { exact: true }).fill("2020-01-01");
-  await expect(page.locator(".consolidated-panel")).toContainText(
+  await expect(page.locator(".valuation-settings")).toContainText(
     "Calcul incomplet",
   );
-  await expect(page.locator(".consolidated-panel")).toContainText("100,00 RON");
+  await expect(page.locator(".valuation-settings")).toContainText("100,00 RON");
   await page
     .getByLabel("Moneda de afișare", { exact: true })
     .selectOption("RON");
-  await expect(page.locator(".consolidated-panel h2")).toContainText("RON");
+  await expect(page.locator(".hero-balance .currency-tag")).toContainText(
+    "RON",
+  );
   await page.goto("/csv");
   const csv = `date;amount;description\r\n2026-10-01;-1.00;"Coffee; ""cup""\nline ${name}"\r\n2026-10-01;-1.00;"Coffee; ""cup""\nline ${name}"\r\n`;
   await page.getByLabel("Fișier CSV", { exact: true }).setInputFiles({

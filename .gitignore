@@ -12,3 +12,5 @@
 **/*.tsbuildinfo
 **/tests-output.txt
 **/migration-output.txt
+
+**/.npm-cache/

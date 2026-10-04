@@ -1,6 +1,13 @@
 import { useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Route,
+  Routes,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
 import {
   Home,
   ArrowLeftRight,
@@ -15,6 +22,8 @@ import {
   Shield,
   LogOut,
   CalendarRange,
+  PiggyBank,
+  ChevronRight,
 } from "lucide-react";
 import type { Dashboard, Locale, Operation, Session } from "./domain/types";
 import { ApiError, csrf, get, request } from "./data/api";
@@ -30,7 +39,6 @@ import { ErrorMessage } from "./components/ui";
 import {
   AccountsPage,
   BudgetsPage,
-  DashboardPage,
   GoalsPage,
   LiabilitiesPage,
   OperationDetails,
@@ -41,6 +49,9 @@ import { AuthPage } from "./features/AuthPage";
 import { CategoriesPage, SettingsPage } from "./features/SettingsPage";
 import { ReportsPage } from "./features/ReportsPage";
 import { AdminPage } from "./features/AdminPage";
+import { DashboardPage } from "./features/DashboardPage";
+import { FeedbackProvider } from "./components/Feedback";
+import { ActionPicker } from "./components/ActionPicker";
 import { CsvPage } from "./features/CsvPage";
 
 function useOnline() {
@@ -162,84 +173,86 @@ export function App() {
   }
   return (
     <LocaleContext value={locale}>
-      {session?.user.email_verified_at && !pending && (
-        <Workspace
-          session={session}
-          online={online}
-          onLogout={() => void logout()}
-        />
-      )}
-      {!online ? (
-        pending ? (
-          <main className="offline-screen">
-            <h1>Norocel · {translate(locale, "offline")}</h1>
-            <p>{translate(locale, "logoutPending")}</p>
+      <FeedbackProvider>
+        {session?.user.email_verified_at && !pending && (
+          <Workspace
+            session={session}
+            online={online}
+            onLogout={() => void logout()}
+          />
+        )}
+        {!online ? (
+          pending ? (
+            <main className="offline-screen">
+              <h1>Norocel · {translate(locale, "offline")}</h1>
+              <p>{translate(locale, "logoutPending")}</p>
+            </main>
+          ) : (
+            <Offline onLogout={() => void logout()} />
+          )
+        ) : pending ? (
+          <main className="state">
+            <ErrorMessage error={logoutError} />
+            <p>{translate(locale, "logout")}</p>
+            {Boolean(logoutError) && (
+              <button
+                onClick={() => {
+                  setPending(false);
+                  setTimeout(() => setPending(true), 0);
+                }}
+              >
+                {translate(locale, "retry")}
+              </button>
+            )}
           </main>
-        ) : (
-          <Offline onLogout={() => void logout()} />
-        )
-      ) : pending ? (
-        <main className="state">
-          <ErrorMessage error={logoutError} />
-          <p>{translate(locale, "logout")}</p>
-          {Boolean(logoutError) && (
+        ) : me.isPending ? (
+          <main className="state">{translate(locale, "loading")}</main>
+        ) : !session ? (
+          <>
+            <div className="public-locale">
+              <select
+                aria-label="Language"
+                value={publicLocale}
+                onChange={(e) => {
+                  setLocale(e.target.value as Locale);
+                  localStorage.setItem("norocel-locale", e.target.value);
+                }}
+              >
+                <option value="ro">Română</option>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            {me.error instanceof ApiError && me.error.status !== 401 && (
+              <ErrorMessage error={me.error} />
+            )}
+            <AuthPage key={location.pathname} onAuthenticated={authenticated} />
+          </>
+        ) : !session.user.email_verified_at ? (
+          <main className="verification">
+            <span className="brand-mark">✦</span>
+            <h1>{translate(locale, "verify")}</h1>
+            <p>{session.user.email}</p>
             <button
-              onClick={() => {
-                setPending(false);
-                setTimeout(() => setPending(true), 0);
-              }}
+              className="primary"
+              onClick={() =>
+                void request("/auth/resend-verification", "POST", {}).catch(
+                  setLogoutError,
+                )
+              }
             >
-              {translate(locale, "retry")}
+              {translate(locale, "resend")}
             </button>
-          )}
-        </main>
-      ) : me.isPending ? (
-        <main className="state">{translate(locale, "loading")}</main>
-      ) : !session ? (
-        <>
-          <div className="public-locale">
-            <select
-              aria-label="Language"
-              value={publicLocale}
-              onChange={(e) => {
-                setLocale(e.target.value as Locale);
-                localStorage.setItem("norocel-locale", e.target.value);
-              }}
-            >
-              <option value="ro">Română</option>
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-          {me.error instanceof ApiError && me.error.status !== 401 && (
-            <ErrorMessage error={me.error} />
-          )}
-          <AuthPage key={location.pathname} onAuthenticated={authenticated} />
-        </>
-      ) : !session.user.email_verified_at ? (
-        <main className="verification">
-          <span className="brand-mark">✦</span>
-          <h1>{translate(locale, "verify")}</h1>
-          <p>{session.user.email}</p>
-          <button
-            className="primary"
-            onClick={() =>
-              void request("/auth/resend-verification", "POST", {}).catch(
-                setLogoutError,
-              )
-            }
-          >
-            {translate(locale, "resend")}
-          </button>
-          <button onClick={() => void me.refetch()}>
-            {translate(locale, "refresh")}
-          </button>
-          <button onClick={() => void logout()}>
-            {translate(locale, "logout")}
-          </button>
-          <ErrorMessage error={logoutError} />
-        </main>
-      ) : null}
+            <button onClick={() => void me.refetch()}>
+              {translate(locale, "refresh")}
+            </button>
+            <button onClick={() => void logout()}>
+              {translate(locale, "logout")}
+            </button>
+            <ErrorMessage error={logoutError} />
+          </main>
+        ) : null}
+      </FeedbackProvider>
     </LocaleContext>
   );
 }
@@ -248,6 +261,7 @@ const navigation = [
   { path: "/operations", key: "operations", icon: ArrowLeftRight },
   { path: "/accounts", key: "accounts", icon: Wallet },
   { path: "/goals", key: "goals", icon: Target },
+  { path: "/savings", key: "savings", icon: PiggyBank },
   { path: "/budgets", key: "budgets", icon: CalendarRange },
   { path: "/liabilities", key: "liabilities", icon: HandCoins },
   { path: "/reports", key: "reports", icon: ChartNoAxesCombined },
@@ -265,6 +279,11 @@ function Workspace({
   onLogout: () => void;
 }) {
   const t = useT();
+  const location = useLocation();
+  const [picker, setPicker] = useState<"actions" | "savings" | null>(null);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
   const [form, setForm] = useState<{
       operation?: Operation;
       toAccount?: string;
@@ -299,11 +318,15 @@ function Workspace({
       hidden={!online}
       style={!online ? { display: "none" } : undefined}
     >
+      <a className="skip-link" href="#main-content">
+        {t("skipToContent")}
+      </a>
       <aside className="sidebar">
         <Link className="brand" to="/">
-          <span className="brand-mark">✦</span>Norocel<sup>2</sup>
+          <span className="brand-mark">✦</span>Norocel
         </Link>
-        <nav>
+        <p className="nav-label">{t("yourFinances")}</p>
+        <nav aria-label={t("navigation")}>
           {navigation.map(({ path, key, icon: Icon }) => (
             <NavLink key={key} to={path} end={path === "/"}>
               <Icon size={19} />
@@ -339,11 +362,28 @@ function Workspace({
           <Link className="mobile-brand" to="/">
             ✦ Norocel
           </Link>
-          <span className="desktop-greeting">{t("neutralHint")}</span>
+          <span className="desktop-greeting">
+            {t("yourFinances")}
+            <ChevronRight size={15} />
+            <strong>
+              {t(
+                navigation.find((item) => item.path === location.pathname)
+                  ?.key ?? "more",
+              )}
+            </strong>
+          </span>
           <div className="inline">
-            <span className="live-dot" />
-            <span>{session.settings.base_currency_code}</span>
-            <button className="primary" onClick={() => setForm({})}>
+            <span className="base-currency">
+              {session.settings.base_currency_code}
+            </span>
+            <Link
+              to="/settings"
+              className="topbar-avatar"
+              aria-label={t("settings")}
+            >
+              {session.user.full_name.slice(0, 1).toUpperCase()}
+            </Link>
+            <button className="primary" onClick={() => setPicker("actions")}>
               <Plus size={18} />
               <span>{t("newOperation")}</span>
             </button>
@@ -357,7 +397,7 @@ function Workspace({
                 update.postMessage({ type: "SKIP_WAITING" });
                 navigator.serviceWorker.addEventListener(
                   "controllerchange",
-                  () => location.reload(),
+                  () => window.location.reload(),
                   { once: true },
                 );
               }}
@@ -366,11 +406,21 @@ function Workspace({
             </button>
           </div>
         )}
-        <main className="page-content">
+        <main
+          id="main-content"
+          className={`page-content page-${location.pathname.split("/")[1] || "home"}`}
+          tabIndex={-1}
+        >
           <Routes>
             <Route
               path="/"
-              element={<DashboardPage session={session} openOperation={open} />}
+              element={
+                <DashboardPage
+                  session={session}
+                  openOperation={open}
+                  onSave={() => setPicker("savings")}
+                />
+              }
             />
             <Route
               path="/operations"
@@ -378,7 +428,24 @@ function Workspace({
             />
             <Route
               path="/accounts"
-              element={<AccountsPage session={session} openOperation={open} />}
+              element={
+                <AccountsPage
+                  key="accounts"
+                  session={session}
+                  openOperation={open}
+                />
+              }
+            />
+            <Route
+              path="/savings"
+              element={
+                <AccountsPage
+                  key="savings"
+                  session={session}
+                  openOperation={open}
+                  savingsOnly
+                />
+              }
             />
             <Route path="/goals" element={<GoalsPage session={session} />} />
             <Route
@@ -402,20 +469,32 @@ function Workspace({
             <Route
               path="/more"
               element={
-                <div className="more-menu">
-                  {navigation.slice(3).map(({ path, key, icon: Icon }) => (
-                    <Link key={key} to={path}>
-                      <Icon />
-                      {t(key)}
-                    </Link>
-                  ))}
-                  {session.user.is_admin && (
-                    <Link to="/admin">
-                      <Shield />
-                      {t("admin")}
-                    </Link>
-                  )}
-                </div>
+                <>
+                  <div className="page-heading">
+                    <div>
+                      <p className="eyebrow">{session.user.full_name}</p>
+                      <h1>{t("more")}</h1>
+                    </div>
+                  </div>
+                  <div className="more-menu">
+                    {navigation
+                      .filter(
+                        (item) => !["/", "/operations"].includes(item.path),
+                      )
+                      .map(({ path, key, icon: Icon }) => (
+                        <Link key={key} to={path}>
+                          <Icon />
+                          {t(key)}
+                        </Link>
+                      ))}
+                    {session.user.is_admin && (
+                      <Link to="/admin">
+                        <Shield />
+                        {t("admin")}
+                      </Link>
+                    )}
+                  </div>
+                </>
               }
             />
             {session.user.is_admin && (
@@ -423,12 +502,18 @@ function Workspace({
             )}
             <Route
               path="*"
-              element={<DashboardPage session={session} openOperation={open} />}
+              element={
+                <DashboardPage
+                  session={session}
+                  openOperation={open}
+                  onSave={() => setPicker("savings")}
+                />
+              }
             />
           </Routes>
         </main>
       </div>
-      <nav className="bottom-nav">
+      <nav className="bottom-nav" aria-label={t("navigation")}>
         <NavLink to="/" end>
           <Home size={21} />
           {t("home")}
@@ -439,20 +524,31 @@ function Workspace({
         </NavLink>
         <button
           className="quick-add"
-          onClick={() => setForm({})}
+          onClick={() => setPicker("actions")}
           aria-label={t("newOperation")}
         >
           <Plus size={25} />
         </button>
-        <NavLink to="/accounts">
-          <Wallet size={21} />
-          {t("accounts")}
+        <NavLink to="/goals">
+          <Target size={21} />
+          {t("goals")}
         </NavLink>
         <NavLink to="/more">
           <Ellipsis size={21} />
           {t("more")}
         </NavLink>
       </nav>
+      {picker && (
+        <ActionPicker
+          savings={picker === "savings"}
+          onSavings={() => setPicker("savings")}
+          onClose={() => setPicker(null)}
+          onSelect={(initialType, toAccount) => {
+            setPicker(null);
+            setForm({ initialType, toAccount });
+          }}
+        />
+      )}
       {detail && (
         <OperationDetails
           o={detail}

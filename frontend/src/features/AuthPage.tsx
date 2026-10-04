@@ -1,3 +1,4 @@
+import { Wallet, Target, ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { request, csrf } from "../data/api";
@@ -85,9 +86,15 @@ export function AuthPage({
         </h1>
         <p>{t("overview")}</p>
         <div className="auth-decoration">
-          <span>✦</span>
-          <span>↗</span>
-          <span>◌</span>
+          <span>
+            <Wallet size={28} />
+          </span>
+          <span>
+            <ArrowLeftRight size={28} />
+          </span>
+          <span>
+            <Target size={28} />
+          </span>
         </div>
       </div>
       <section className="auth-card">

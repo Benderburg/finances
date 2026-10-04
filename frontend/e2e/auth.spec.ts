@@ -3,8 +3,9 @@ import { test, expect, type Page } from "./fixtures";
 
 const mailbox = () =>
   readFileSync("../backend/storage/logs/laravel.log", "utf8");
-const mailOrigin = (process.env.NOROCEL_QA_URL ?? "http://127.0.0.1:8000")
-  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const mailOrigin = (
+  process.env.NOROCEL_QA_URL ?? "http://127.0.0.1:8000"
+).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -33,13 +34,13 @@ test("register, email verification, income, expense, password reset and user iso
   ).toBeVisible();
   const me = await (await page.request.get("/api/v1/me")).json();
   const pattern = new RegExp(
-    mailOrigin + "/auth/verify-email/" +
-      me.data.user.id +
-      "/[^\\s<>()]+",
+    mailOrigin + "/auth/verify-email/" + me.data.user.id + "/[^\\s<>()]+",
   );
   await expect.poll(() => mailbox().match(pattern)?.[0]).toBeTruthy();
   await page.goto(mailbox().match(pattern)![0].replaceAll("&amp;", "&"));
-  await expect(page.locator(".balance-card")).toHaveCount(4);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4);
   await page.goto("/accounts");
   await page.getByRole("button", { name: "Adaugă", exact: true }).click();
   let dialog = page.getByRole("dialog");
@@ -74,7 +75,9 @@ test("register, email verification, income, expense, password reset and user iso
   await dialog.getByRole("button", { name: "Salvează", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.goto("/");
-  await expect(page.locator(".balance-card.lead")).toContainText("300,00 MDL");
+  await expect(page.locator(".currency-balance:first-child")).toContainText(
+    "300,00 MDL",
+  );
   await page.goto("/settings");
   await page
     .getByRole("main")
@@ -87,7 +90,10 @@ test("register, email verification, income, expense, password reset and user iso
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Trimite link", exact: true }).click();
   await expect(page.locator(".success")).toBeVisible();
-  const resetPattern = new RegExp(mailOrigin + "/reset-password\\?[^\\s<>()]+", "g");
+  const resetPattern = new RegExp(
+    mailOrigin + "/reset-password\\?[^\\s<>()]+",
+    "g",
+  );
   const link = mailbox().match(resetPattern)?.at(-1);
   expect(link).toBeTruthy();
   await page.goto(link!.replaceAll("&amp;", "&"));
@@ -98,7 +104,9 @@ test("register, email verification, income, expense, password reset and user iso
     .click();
   await expect(page.locator(".success")).toBeVisible();
   await login(page, email, "recovered-test-456");
-  await expect(page.locator(".balance-card.lead")).toContainText("300,00 MDL");
+  await expect(page.locator(".currency-balance:first-child")).toContainText(
+    "300,00 MDL",
+  );
   await page.goto("/settings");
   await page
     .getByRole("main")
@@ -108,7 +116,9 @@ test("register, email verification, income, expense, password reset and user iso
     page.getByRole("button", { name: "Autentificare", exact: true }),
   ).toBeVisible();
   await login(page, "dev@norocel.test", "local-testing-123");
-  await expect(page.locator(".balance-card")).toHaveCount(4);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4);
   await page.goto("/accounts");
   await expect(
     page.getByRole("heading", { name: "Private " + stamp }),

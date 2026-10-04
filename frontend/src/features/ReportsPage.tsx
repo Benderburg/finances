@@ -88,7 +88,10 @@ export function ReportsPage({ session }: { session: Session }) {
   return (
     <>
       <div className="page-heading">
-        <h1>{t("reports")}</h1>
+        <div>
+          <h1>{t("reports")}</h1>
+          <p className="page-description">{t("reportsHint")}</p>
+        </div>
         <button onClick={() => window.print()}>
           <Printer size={18} />
           {t("print")}
@@ -153,12 +156,35 @@ export function ReportsPage({ session }: { session: Session }) {
                 m,
               );
             }, 1n);
+            if (
+              !d.months.some(
+                (row) =>
+                  BigInt(row.consolidated.known_subtotal.income_minor) !== 0n ||
+                  BigInt(row.consolidated.known_subtotal.expense_minor) !== 0n,
+              )
+            )
+              return (
+                <>
+                  <ValuationNote value={d.consolidated} />
+                  <Empty title="emptyReports" hint="emptyReportsHint" />
+                </>
+              );
             return (
               <>
                 <ValuationNote value={d.consolidated} />
                 <p className="subtle">
                   {d.date_from} — {d.date_to} · {d.generated_at}
                 </p>
+                <div className="chart-legend">
+                  <span>
+                    <i className="income-bar" />
+                    {t("incomeLegend")}
+                  </span>
+                  <span>
+                    <i className="expense-bar" />
+                    {t("expenseLegend")}
+                  </span>
+                </div>
                 <div className="chart-bars">
                   {d.months.map((row) => (
                     <div className="chart-month" key={row.month}>
@@ -301,7 +327,7 @@ export function ReportsPage({ session }: { session: Session }) {
                     })}
                   </div>
                 ) : (
-                  <Empty />
+                  <Empty title="emptyReports" hint="emptyReportsHint" />
                 )}
               </>
             );
@@ -423,7 +449,7 @@ export function ReportsPage({ session }: { session: Session }) {
                   );
                 })
               ) : (
-                <Empty />
+                <Empty title="emptyReports" hint="emptyReportsHint" />
               )}
             </>
           )}

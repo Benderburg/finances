@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 import { get, request } from "../data/api";
 import {
   currencies,
@@ -265,6 +265,7 @@ export function OperationForm({
               <button
                 type="button"
                 disabled={mutation.isPending || mutation.uncertain}
+                aria-pressed={type === v}
                 className={type === v ? "selected" : ""}
                 onClick={() => {
                   setType(v);
@@ -278,55 +279,14 @@ export function OperationForm({
           </div>
         )}
         <fieldset disabled={mutation.isPending || mutation.uncertain}>
-          {!pair && !actualGoal && (
-            <label>
-              <span>{t("account")}</span>
-              {selectAccounts(account, setAccount)}
-            </label>
-          )}
-          {pair && (
-            <div className="form-grid">
-              <label>
-                <span>{t("source")}</span>
-                {selectAccounts(
-                  from,
-                  (v) => {
-                    setFrom(v);
-                    setRate("");
-                    setReceived("");
-                  },
-                  to,
-                  t("source"),
-                )}
-              </label>
-              <label>
-                <span>{t("destination")}</span>
-                {selectAccounts(
-                  to,
-                  (v) => {
-                    setTo(v);
-                    setRate("");
-                    setReceived("");
-                  },
-                  from,
-                  t("destination"),
-                )}
-              </label>
-            </div>
-          )}
-          {source && (
-            <p className="hint">
-              {source.name} · {t("available")}:{" "}
-              {formatMoney(source.balance_minor, source.currency_code, locale)}
-            </p>
-          )}
           {!liability && (
-            <label>
+            <label className="amount-field">
               <span>
                 {t("amount")}
                 {source ? " · " + source.currency_code : ""}
               </span>
               <input
+                placeholder="0.00"
                 autoFocus
                 inputMode="decimal"
                 required
@@ -343,6 +303,70 @@ export function OperationForm({
                 locale,
               )}
             </div>
+          )}
+
+          {!pair && !actualGoal && (
+            <label>
+              <span>{t("account")}</span>
+              {selectAccounts(account, setAccount)}
+            </label>
+          )}
+          {pair && (
+            <div className="form-grid transfer-accounts">
+              <label>
+                <span>{t("source")}</span>
+                {selectAccounts(
+                  from,
+                  (v) => {
+                    setFrom(v);
+                    setRate("");
+                    setReceived("");
+                  },
+                  to,
+                  t("source"),
+                )}
+                {source && (
+                  <small>
+                    {formatMoney(
+                      source.balance_minor,
+                      source.currency_code,
+                      locale,
+                    )}
+                  </small>
+                )}
+              </label>
+              <span className="transfer-direction" aria-hidden="true">
+                <ArrowRight size={18} />
+              </span>
+              <label>
+                <span>{t("destination")}</span>
+                {selectAccounts(
+                  to,
+                  (v) => {
+                    setTo(v);
+                    setRate("");
+                    setReceived("");
+                  },
+                  from,
+                  t("destination"),
+                )}
+                {target && (
+                  <small>
+                    {formatMoney(
+                      target.balance_minor,
+                      target.currency_code,
+                      locale,
+                    )}
+                  </small>
+                )}
+              </label>
+            </div>
+          )}
+          {source && (
+            <p className="hint">
+              {source.name} · {t("available")}:{" "}
+              {formatMoney(source.balance_minor, source.currency_code, locale)}
+            </p>
           )}
           {exchange && (
             <>

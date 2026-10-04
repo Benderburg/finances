@@ -1,3 +1,4 @@
+import { useConfirm } from "../components/Feedback";
 import { useContext, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { request, download } from "../data/api";
@@ -17,6 +18,7 @@ import {
 } from "../components/ui";
 
 export function CategoriesPage() {
+  const confirm = useConfirm();
   const t = useT(),
     mutation = useCommand();
   const [page, setPage] = useState(1),
@@ -65,9 +67,9 @@ export function CategoriesPage() {
                         </button>
                         {!c.is_system && (
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (
-                                confirm(
+                                await confirm(
                                   t("delete") + " " + categoryName(c, t) + "?",
                                 )
                               )
@@ -135,6 +137,7 @@ export function SettingsPage({
   session: Session;
   onLogout: () => void;
 }) {
+  const confirm = useConfirm();
   const t = useT(),
     locale = useContext(LocaleContext),
     cache = useQueryClient(),
@@ -230,7 +233,10 @@ export function SettingsPage({
         <h1>{t("settings")}</h1>
         <button onClick={onLogout}>{t("logout")}</button>
       </div>
-      <section className="panel">
+      <section className="panel profile-panel">
+        <div className="profile-avatar">
+          {session.user.full_name.slice(0, 1).toUpperCase()}
+        </div>
         <div className="card-top">
           <h2>{session.user.full_name}</h2>
           <button onClick={() => setEdit(true)}>{t("edit")}</button>
@@ -330,8 +336,8 @@ export function SettingsPage({
             <button
               className="danger"
               disabled={mutation.isPending}
-              onClick={() => {
-                if (confirm(t("restoreWarning")))
+              onClick={async () => {
+                if (await confirm(t("restoreWarning")))
                   void mutation
                     .submit("/backup/apply", "POST", {
                       preview_token: preview.preview_token,

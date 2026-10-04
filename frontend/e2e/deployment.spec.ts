@@ -21,7 +21,9 @@ test("PHP-FPM Nginx deployment serves deep links, sessions, CSRF and built asset
   await page
     .getByRole("button", { name: "Autentificare", exact: true })
     .click();
-  await expect(page.locator(".balance-card")).toHaveCount(4, {
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4, {
     timeout: 30000,
   });
   await page.goto(base + "/reports");

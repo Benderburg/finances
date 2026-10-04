@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   useMutation,
   useQuery,
@@ -7,10 +7,10 @@ import {
 } from "@tanstack/react-query";
 import {
   X,
-  LoaderCircle,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { ApiError, command, get, getAll } from "../data/api";
 import { useT } from "../i18n";
@@ -53,6 +53,7 @@ export function useCommand() {
       pending.current = null;
       setUncertain(false);
       await cache.invalidateQueries();
+      window.dispatchEvent(new Event("norocel-saved"));
     },
     onError: (e) => {
       if (e instanceof ApiError && (e.status === 0 || e.status >= 500))
@@ -122,9 +123,16 @@ export function State<T>({
   const t = useT();
   if (query.isPending)
     return (
-      <div className="state">
-        <LoaderCircle className="spin" />
-        {t("loading")}
+      <div className="loading-state" role="status" aria-label={t("loading")}>
+        <span className="sr-only">{t("loading")}</span>
+        <div className="skeleton skeleton-title" />
+        <div className="skeleton-grid">
+          {[0, 1, 2].map((i) => (
+            <div className="skeleton skeleton-card" key={i} />
+          ))}
+        </div>
+        <div className="skeleton skeleton-line" />
+        <div className="skeleton skeleton-line" />
       </div>
     );
   if (query.isError)
@@ -136,12 +144,23 @@ export function State<T>({
     );
   return <>{children(query.data.data)}</>;
 }
-export function Empty({ action }: { action?: ReactNode }) {
+export function Empty({
+  action,
+  title = "empty",
+  hint,
+}: {
+  action?: ReactNode;
+  title?: string;
+  hint?: string;
+}) {
   const t = useT();
   return (
     <div className="empty">
-      <span>✦</span>
-      <p>{t("empty")}</p>
+      <span className="empty-icon">
+        <Sparkles size={28} strokeWidth={1.5} />
+      </span>
+      <h3>{t(title)}</h3>
+      {hint && <p>{t(hint)}</p>}
       {action}
     </div>
   );
@@ -189,6 +208,7 @@ export function Modal({
 }) {
   const t = useT();
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const dialog = ref.current;
     const open = () =>
@@ -209,13 +229,14 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
       }}
     >
       <div className="modal-title">
-        <h2>{title}</h2>
+        <h2 id={titleId}>{title}</h2>
         <button
           className="icon-button"
           aria-label={t("close")}
@@ -407,11 +428,13 @@ export const moneyField = (
   allowZero,
 });
 export function Progress({ value }: { value: string }) {
+  const t = useT();
   const percent = Math.max(0, Math.min(100, Number(value)));
   return (
     <div
       className="progress"
       role="progressbar"
+      aria-label={t("progressLabel")}
       aria-valuenow={percent}
       aria-valuemin={0}
       aria-valuemax={100}

@@ -121,9 +121,12 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
   await expect(dialog).toContainText("30,00 USD");
   await dialog.getByText("Istoricul modificărilor").click();
   await expect(dialog).toContainText("Modificat");
-  page.once("dialog", (d) => d.accept());
   await dialog
     .getByRole("button", { name: "Anulează operațiunea", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Confirmă acțiunea", exact: true })
+    .getByRole("button", { name: "Confirmă", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await goto(page, "/goals");
@@ -163,9 +166,12 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
   await goto(page, "/operations");
   await page.getByText("Completion " + stamp, { exact: true }).click();
   dialog = page.getByRole("dialog");
-  page.once("dialog", (d) => d.accept());
   await dialog
     .getByRole("button", { name: "Anulează operațiunea", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Confirmă acțiunea", exact: true })
+    .getByRole("button", { name: "Confirmă", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await goto(page, "/goals");
@@ -191,9 +197,12 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
     .selectOption({ label: "Alte cheltuieli" });
   await dialog.getByRole("button", { name: "Salvează", exact: true }).click();
   await expect(liability).toContainText("Rambursat");
-  page.once("dialog", (d) => d.accept());
   await liability
     .getByRole("button", { name: "Anulează rambursarea", exact: true })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Confirmă acțiunea", exact: true })
+    .getByRole("button", { name: "Confirmă", exact: true })
     .click();
   await expect(liability).toContainText("Deschis");
   await goto(page, "/operations");
@@ -249,12 +258,15 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
     .getByRole("button", { name: "Verifică fișierul", exact: true })
     .click();
   await expect(page.locator(".restore-preview")).toBeVisible();
-  page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", {
       name: "Înlocuiește datele cu copia verificată",
       exact: true,
     })
+    .click();
+  await page
+    .getByRole("dialog", { name: "Confirmă acțiunea", exact: true })
+    .getByRole("button", { name: "Confirmă", exact: true })
     .click();
   await expect(
     page.getByRole("button", {
@@ -282,7 +294,9 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
   });
   await page.emulateMedia({ media: "screen" });
   await goto(page, "/");
-  await expect(page.locator(".balance-card")).toHaveCount(4);
+  await expect(
+    page.locator(".currency-balance, .offline-screen .balance-card"),
+  ).toHaveCount(4);
   await expect(
     page.locator(".operation-row").filter({ hasText: "…" }),
   ).toHaveCount(0);
