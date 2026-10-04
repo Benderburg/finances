@@ -66,3 +66,33 @@ cd /home/c/ck85651/norocel/backend && /opt/php8.5/bin/php artisan norocel:fx-syn
 Production smoke check: `/up`, `/csv`, `/sw.js`, `/manifest.webmanifest` — 200; PWA-файлы имеют правильные MIME/no-cache. CSV без сессии — 401/no-store, с отдельной сессией владельца — 200, `text/csv`, attachment `norocel-journal.csv`, `no-store, private`, корректный version marker и набор колонок. Проверочная сессия завершена. Финансовые импорты на production не выполнялись; полный цикл CSV проверен на отдельной QA-базе.
 
 Локально: 41 backend tests / 413 assertions, 4 frontend unit tests, 14 desktop/mobile E2E на PHP-FPM/Nginx. [CI для кода этапа B](https://github.com/Benderburg/finances/actions/runs/37197678143) успешно завершён на PHP 8.2 и 8.5. Процедура следующего инкрементального обновления: `scripts/deploy-stage-b-timeweb.sh`; контроль сохранности — `scripts/timeweb-stage-b-check.php`. Архив не включает `.env`, vendor, storage или существующие финансовые данные.
+
+## Редизайн интерфейса — 2026-10-04
+
+По запросу владельца опубликован код `dbb7c4b` из ветки `norocel-2`.
+Архив `norocel-ui-redesign-86c15c8c18f588f1.zip` (223580 байт), SHA-256:
+`742d3729b475e9dee6df65a4ed8db744bc3423243eece16587f125ba5c0a9c66`.
+Он распакован через файловый менеджер Timeweb в
+`/home/c/ck85651/norocel/backend` и содержит ровно десять файлов:
+`public/build/index.html`, JS/CSS, пять локальных шрифтов Manrope,
+`resources/pwa/sw.js` и `resources/pwa/manifest.webmanifest`.
+Backend, `.env`, vendor, storage, база и расписание BNM не обновлялись;
+миграции не запускались. Старые хешированные ресурсы оставлены для перехода PWA.
+
+Новая PWA: `86c15c8c18f588f1`; bundle `index-CWJ4x05I.js`, CSS
+`index-CqYSuUdM.css`. Каждый из десяти опубликованных файлов скачан и
+сравнен по SHA-256 с локальной сборкой — все совпадают. SW и manifest
+сохранили `public, no-cache` и правильные MIME. `/`, `/up`, `/csv`,
+`/savings`, `/reports` и прежний JS — HTTP 200; `.env` — 403;
+API dashboard без сессии — 401. В браузере проверены вход владельца,
+главная, накопления, отчёты и принятие новой PWA. Финансовые записи
+для проверки на production не создавались.
+Timeweb предупреждал о DDoS и перебоях: один HTTP-запрос оборвался,
+а первый запрос денежного потока показал ошибку сервера; повторные
+запросы и загрузка отчёта прошли успешно.
+
+Для отката только интерфейса сохранён локальный архив
+`.runtime/norocel-ui-rollback-0d68442665d97d7d.zip` с предыдущими
+`index.html`, SW и manifest, скачанными до обновления. Его следует
+распаковать в тот же backend; старые assets уже доступны на сервере.
+Данные и `.env` при таком откате не затрагиваются.

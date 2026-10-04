@@ -108,5 +108,5 @@ E2E-сценариев для desktop/mobile подтверждены, вклю�
 
 Локальная среда проверки: `http://127.0.0.1:8001`, существующий Docker QA.
 Скриншоты находятся в `.runtime/ui-redesign/` и `frontend/test-results/`.
-Физические iOS/Android и Safari не проверялись. Изменения на production
-не публиковались.
+Физические iOS/Android и Safari не проверялись. Production-релиз опубликован
+2026-10-04 на https://norocel.noros.net/; подробности — в `TIMEWEB_DEPLOYMENT.md`.
