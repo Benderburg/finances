@@ -10,7 +10,7 @@ final class Money
 {
     public const MAX = '999999999999999';
 
-    public const CURRENCIES = ['MDL', 'EUR', 'USD'];
+    public const CURRENCIES = ['MDL', 'EUR', 'USD', 'RON'];
 
     public static function minor(mixed $value, bool $zero = false): string
     {

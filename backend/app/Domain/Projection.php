@@ -71,13 +71,16 @@ final class Projection
     {
         $end = CarbonImmutable::parse($row['period_month'])->endOfMonth()->toDateString();
         $groups = [];
+        $rows = [];
         foreach (DB::table('operations')->where('user_id', $user)->where('status', 'posted')->where('type', 'expense')->where('category_id', $row['category_id'])->whereBetween('occurred_on', [$row['period_month'], $end])->cursor() as $op) {
             $groups[$op->currency_code] = Money::sum([$groups[$op->currency_code] ?? '0', (string) $op->amount_minor]);
+            $rows[] = ['amount_minor' => (string) $op->amount_minor, 'currency_code' => $op->currency_code, 'date' => $op->occurred_on, 'operation_id' => $op->id];
         }
-        $fact = $groups[$row['currency_code']] ?? '0';
+        $valuation = app(ReferenceRates::class)->aggregate($rows, $row['currency_code'], ['budget_id' => $row['id'], 'period_month' => $row['period_month'], 'workspace_revision' => (string) DB::table('user_settings')->where('user_id', $user)->value('workspace_revision')]);
+        $fact = $valuation['known_subtotal']['amount_minor'] ?? '0';
         unset($groups[$row['currency_code']]);
 
-        return self::serialize($row) + ['fact_minor' => $fact, 'remaining_minor' => Money::sum([(string) $row['limit_minor'], '-'.$fact]), 'progress' => Money::percent($fact, (string) $row['limit_minor']), 'other_currencies' => $groups];
+        return self::serialize($row) + ['fact_minor' => $fact, 'remaining_minor' => Money::sum([(string) $row['limit_minor'], '-'.$fact]), 'progress' => Money::percent($fact, (string) $row['limit_minor']), 'other_currencies' => $groups, 'valuation' => $valuation];
     }
 
     public function cashFlow(string $user, string $from, string $to): array
@@ -121,6 +124,6 @@ final class Projection
             }
         }
 
-        return ['month' => $month, 'balances' => $totals, 'cash_flow' => $this->cashFlow($user, $start, $end), 'recent_operations' => DB::table('operations')->where('user_id', $user)->orderByDesc('occurred_on')->orderByDesc('created_at')->orderByDesc('id')->limit(8)->get()->map(self::serialize(...))->all(), 'goals' => DB::table('goals')->where('user_id', $user)->whereNull('cancelled_at')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($g) => $this->goal($user, (array) $g))->all(), 'budgets' => DB::table('budgets')->where('user_id', $user)->where('period_month', $start)->where('disabled', false)->limit(6)->get()->map(fn ($b) => $this->budget($user, (array) $b))->all(), 'liabilities' => DB::table('liabilities')->where('user_id', $user)->whereNull('cancelled_at')->whereNotIn('id', DB::table('liability_settlements')->where('user_id', $user)->select('liability_id'))->orderBy('due_on')->limit(6)->get()->map(fn ($l) => $this->liability($user,(array) $l))->all()];
+        return ['month' => $month, 'balances' => $totals, 'cash_flow' => $this->cashFlow($user, $start, $end), 'recent_operations' => DB::table('operations')->where('user_id', $user)->orderByDesc('occurred_on')->orderByDesc('created_at')->orderByDesc('id')->limit(8)->get()->map(self::serialize(...))->all(), 'goals' => DB::table('goals')->where('user_id', $user)->whereNull('cancelled_at')->orderByDesc('updated_at')->limit(6)->get()->map(fn ($g) => $this->goal($user, (array) $g))->all(), 'budgets' => DB::table('budgets')->where('user_id', $user)->where('period_month', $start)->where('disabled', false)->limit(6)->get()->map(fn ($b) => $this->budget($user, (array) $b))->all(), 'liabilities' => DB::table('liabilities')->where('user_id', $user)->whereNull('cancelled_at')->whereNotIn('id', DB::table('liability_settlements')->where('user_id', $user)->select('liability_id'))->orderBy('due_on')->limit(6)->get()->map(fn ($l) => $this->liability($user, (array) $l))->all()];
     }
 }

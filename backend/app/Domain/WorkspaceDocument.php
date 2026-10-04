@@ -28,7 +28,7 @@ final class WorkspaceDocument
             throw new DomainError('INVALID_BACKUP_VERSION');
         }
         Validator::make($d, ['exported_at' => 'required|date', 'settings' => 'required|array'])->validate();
-        Fields::check($d['settings'], ['locale' => 'required|in:ro,ru,en', 'base_currency_code' => 'required|in:MDL,EUR,USD', 'theme' => 'required|in:light,dark,system', 'timezone' => 'required|timezone']);
+        Fields::check($d['settings'], ['locale' => 'required|in:ro,ru,en', 'base_currency_code' => 'required|in:MDL,EUR,USD,RON', 'theme' => 'required|in:light,dark,system', 'timezone' => 'required|timezone']);
         $maps = [];
         $count = 0;
         $global = [];

@@ -8,7 +8,7 @@ async function login(page: Page) {
   await page
     .getByRole("button", { name: "Autentificare", exact: true })
     .click();
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
 }
 test("lost command response retries the same key once and expired session closes workspace", async ({
   page,
@@ -99,7 +99,7 @@ test("PWA update waits for confirmation and then activates", async ({
         exact: true,
       })
       .click();
-    await expect(page.locator(".balance-card")).toHaveCount(3);
+    await expect(page.locator(".balance-card")).toHaveCount(4);
     await expect(
       page.getByText("O versiune nouă este disponibilă"),
     ).toHaveCount(0);

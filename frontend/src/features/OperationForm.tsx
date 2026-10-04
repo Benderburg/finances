@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { get } from "../data/api";
+import { get, request } from "../data/api";
 import {
   currencies,
   formatMoney,
@@ -75,6 +75,11 @@ export function OperationForm({
   const [quickCategory, setQuickCategory] = useState(false);
   const [newAccount, setNewAccount] = useState(false);
   const [error, setError] = useState<unknown>();
+  const [referenceQuote, setReferenceQuote] = useState<{
+    key: string;
+    amount: string | null;
+  }>();
+  const [quoteBusy, setQuoteBusy] = useState(false);
   const accounts = useAllList<Account>("/accounts"),
     categories = useAllList<Category>("/categories");
   const allAccounts = accounts.data?.data.items ?? [],
@@ -93,6 +98,34 @@ export function OperationForm({
     target = allAccounts.find((a) => a.id === to);
   const exchange =
     pair && source && target && source.currency_code !== target.currency_code;
+  const quoteKey = [
+    amount,
+    source?.currency_code,
+    target?.currency_code,
+    date,
+  ].join("|");
+  async function reference() {
+    if (!source || !target) return;
+    setQuoteBusy(true);
+    setError(undefined);
+    try {
+      const r = await request<{ data: { amount_minor: string | null } }>(
+        "/api/v1/operations/quote",
+        "POST",
+        {
+          amount_minor: parseMoney(amount),
+          currency_code: source.currency_code,
+          target_currency_code: target.currency_code,
+          date,
+        },
+      );
+      setReferenceQuote({ key: quoteKey, amount: r.data.amount_minor });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setQuoteBusy(false);
+    }
+  }
   useEffect(() => {
     if (!account && allAccounts.length)
       setAccount(allAccounts.find((a) => !a.archived_at)?.id ?? "");
@@ -329,6 +362,25 @@ export function OperationForm({
                   {t("rateMode")}
                 </button>
               </div>
+              <p className="subtle">{t("fxIndicative")}</p>
+              <button
+                type="button"
+                disabled={quoteBusy || !amount}
+                onClick={() => void reference()}
+              >
+                {t(quoteBusy ? "loading" : "fxQuote")}
+              </button>
+              {referenceQuote?.key === quoteKey && (
+                <p role="status">
+                  {referenceQuote.amount !== null && target
+                    ? formatMoney(
+                        referenceQuote.amount,
+                        target.currency_code,
+                        locale,
+                      )
+                    : t("fxMissing")}
+                </p>
+              )}
               {mode === "rate" ? (
                 <>
                   <label>

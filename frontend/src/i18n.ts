@@ -3,6 +3,299 @@ import type { Category, Locale } from "./domain/types";
 
 // Each entry contains Romanian, Russian and English; user-entered text is never translated.
 const copy: Record<string, [string, string, string]> = {
+  fxDisplayCurrency: [
+    "Moneda de afișare",
+    "Валюта расчёта",
+    "Display currency",
+  ],
+  fxValuationDate: ["Data evaluării", "Дата оценки", "Valuation date"],
+  fxTotalBalance: [
+    "Sold total estimat",
+    "Общий оценочный остаток",
+    "Estimated total balance",
+  ],
+  fxKnownBalance: [
+    "Partea calculată a soldului",
+    "Известная часть остатка",
+    "Known balance subtotal",
+  ],
+  fxIncomplete: [
+    "Calcul incomplet",
+    "Нет полного расчёта",
+    "Incomplete calculation",
+  ],
+  fxKnownPart: [
+    "Sunt afișate doar sumele convertite. Sumele de mai jos nu au curs disponibil.",
+    "Показана только рассчитанная часть. Для сумм ниже нет допустимого курса.",
+    "Only the converted subtotal is shown. The amounts below have no eligible rate.",
+  ],
+  fxFallback: [
+    "Ultimul curs disponibil",
+    "Использован предыдущий курс",
+    "Previous available rate used",
+  ],
+  fxSource: [
+    "Cursuri BNM și sursa evaluării",
+    "Курсы BNM и источник оценки",
+    "BNM rates and valuation source",
+  ],
+  fxIndicative: [
+    "Evaluare orientativă. Cursurile BNM nu modifică operațiunile și nu garantează cursul băncii.",
+    "Справочная оценка. Курсы BNM не изменяют операции и не гарантируют банковский курс.",
+    "Indicative valuation. BNM rates do not change operations or guarantee a bank rate.",
+  ],
+  fxMissing: ["Curs lipsă", "Нет курса", "No rate"],
+  fxRefresh: [
+    "Încarcă cursurile pentru aceste date",
+    "Загрузить курсы для этих дат",
+    "Fetch rates for these dates",
+  ],
+  fxUpdated: ["Cursurile sunt actualizate", "Курсы обновлены", "Rates updated"],
+  fxQuote: ["Evaluare BNM", "Оценка по BNM", "BNM estimate"],
+  RATE_PROVIDER_UNAVAILABLE: [
+    "BNM nu răspunde. Sumele inițiale rămân disponibile.",
+    "BNM недоступен. Исходные суммы остаются доступны.",
+    "BNM is unavailable. Original amounts remain available.",
+  ],
+  csvTitle: [
+    "CSV import / export",
+    "CSV импорт / экспорт",
+    "CSV import / export",
+  ],
+  csvExport: [
+    "Exportă jurnalul CSV",
+    "Экспорт журнала CSV",
+    "Export CSV journal",
+  ],
+  csvExportHint: [
+    "Întregul jurnal, inclusiv transferuri, schimburi și operațiuni anulate. Pentru restaurarea completă folosește copia JSON din setări.",
+    "Весь журнал, включая переводы, обмены и отменённые операции. Для полного восстановления используйте JSON-копию в настройках.",
+    "Full journal including transfers, exchanges and voided operations. Use a JSON backup in settings for a full restore.",
+  ],
+  csvSafe: [
+    "Protecție formule Excel (reversibilă la import)",
+    "Защита от формул Excel (обратима при импорте)",
+    "Excel formula protection (reversible on import)",
+  ],
+  csvImport: [
+    "Adaugă operațiuni din CSV",
+    "Добавить операции из CSV",
+    "Add operations from CSV",
+  ],
+  csvAdditive: [
+    "Importul adaugă numai rândurile alese. Conturile, categoriile, scopurile și datoriile trebuie să existe deja.",
+    "Импорт добавляет только выбранные строки. Счета, категории, цели и долги должны уже существовать.",
+    "Import adds selected rows. Accounts, categories, goals and liabilities must already exist.",
+  ],
+  csvLimits: [
+    "Maximum 5 MiB / 10 000 rânduri. Întregul lot se aplică sau se anulează.",
+    "До 5 MiB / 10 000 строк. Пакет применяется целиком или полностью откатывается.",
+    "Up to 5 MiB / 10,000 rows. The batch is committed or rolled back as a whole.",
+  ],
+  csvFile: ["Fișier CSV", "CSV-файл", "CSV file"],
+  csvDetect: ["Detectează formatul", "Определить формат", "Detect format"],
+  csvReread: [
+    "Recitește cu acest format",
+    "Перечитать с этим форматом",
+    "Reread with this format",
+  ],
+  csvEncoding: ["Codificare", "Кодировка", "Encoding"],
+  csvDelimiter: ["Separator", "Разделитель", "Delimiter"],
+  csvRows: ["rânduri", "строк", "rows"],
+  csvMap_date: ["Coloana datei", "Колонка даты", "Date column"],
+  csvMap_amount: ["Coloana sumei", "Колонка суммы", "Amount column"],
+  csvMap_direction: [
+    "Coloana direcției",
+    "Колонка направления",
+    "Direction column",
+  ],
+  csvMap_currency: ["Coloana monedei", "Колонка валюты", "Currency column"],
+  csvMap_description: [
+    "Coloana descrierii",
+    "Колонка описания",
+    "Description column",
+  ],
+  csvMap_category: [
+    "Coloana categoriei",
+    "Колонка категории",
+    "Category column",
+  ],
+  csvMap_transaction_id: [
+    "ID unic al tranzacției bancare",
+    "Уникальный ID банковской операции",
+    "Unique bank transaction ID",
+  ],
+  csvDateFormat: ["Formatul datei", "Формат даты", "Date format"],
+  csvDecimal: [
+    "Separator zecimal",
+    "Десятичный разделитель",
+    "Decimal separator",
+  ],
+  csvIncomeValue: [
+    "Valoarea pentru venit",
+    "Значение для дохода",
+    "Income direction value",
+  ],
+  csvExpenseValue: [
+    "Valoarea pentru cheltuială",
+    "Значение для расхода",
+    "Expense direction value",
+  ],
+  csvSignedAmounts: [
+    "Fără coloană de direcție: sumele negative sunt cheltuieli, pozitive — venituri.",
+    "Без колонки направления: отрицательные суммы — расходы, положительные — доходы.",
+    "Without a direction column: negative amounts are expenses, positive amounts are income.",
+  ],
+  csvBankTransfer: [
+    "CSV bancar: numai venituri/cheltuieli. Exclude ambele părți ale transferurilor și creează transferul separat.",
+    "Банковский CSV: только доходы/расходы. Исключите обе стороны переводов и создайте перевод отдельно.",
+    "Bank CSV supports income/expense only. Exclude both transfer sides and create a transfer separately.",
+  ],
+  csvOwnMapping: [
+    "Asociază ID-urile conturilor. Categoria se caută după cod sau numele exact; legăturile lipsă necesită JSON.",
+    "Сопоставьте ID счетов. Категория ищется по коду или точному имени; отсутствующие связи требуют JSON.",
+    "Map account IDs. Categories match by code or exact name; missing linked records require JSON.",
+  ],
+  csvKeepId: ["Păstrează ID-ul", "Сохранить ID", "Keep ID"],
+  csvConfirmFormat: [
+    "Confirm codificarea, separatorul și coloanele; am verificat transferurile.",
+    "Подтверждаю кодировку, разделитель и колонки; переводы проверены.",
+    "I confirm encoding, delimiter and mapping, and have checked transfers.",
+  ],
+  csvPreview: ["Verifică rândurile", "Проверить строки", "Preview rows"],
+  csvSelectionHint: [
+    "Rândurile cu erori sunt excluse. Dublurile posibile se selectează și se confirmă explicit.",
+    "Строки с ошибками исключены. Возможные дубли выбираются и подтверждаются явно.",
+    "Rows with errors are excluded. Possible duplicates need explicit selection and confirmation.",
+  ],
+  csvSelectValid: [
+    "Selectează valide fără dubluri",
+    "Выбрать корректные без дублей",
+    "Select valid rows without duplicates",
+  ],
+  csvInclude: ["Include", "Включить", "Include"],
+  csvPossibleDuplicate: [
+    "Posibil duplicat",
+    "Возможный дубль",
+    "Possible duplicate",
+  ],
+  csvValid: ["Valid", "Корректно", "Valid"],
+  csvAcceptDuplicates: [
+    "Confirm că rândurile suspecte selectate sunt operațiuni distincte",
+    "Подтверждаю: выбранные подозрительные строки — отдельные реальные операции",
+    "I confirm selected possible duplicates are separate real transactions",
+  ],
+  csvChangeMapping: [
+    "Modifică asocierea",
+    "Изменить сопоставление",
+    "Change mapping",
+  ],
+  csvApply: [
+    "Adaugă rândurile selectate",
+    "Добавить выбранные строки",
+    "Add selected rows",
+  ],
+  csvImported: [
+    "Operațiuni adăugate",
+    "Добавлено операций",
+    "Operations added",
+  ],
+  CSV_LIMIT: [
+    "Fișierul depășește 5 MiB sau 10 000 rânduri",
+    "Превышен лимит 5 MiB или 10 000 строк",
+    "File exceeds 5 MiB or 10,000 rows",
+  ],
+  CSV_ENCODING: [
+    "Codificare invalidă",
+    "Некорректная кодировка",
+    "Invalid encoding",
+  ],
+  CSV_DELIMITER: [
+    "Separator invalid",
+    "Некорректный разделитель",
+    "Invalid delimiter",
+  ],
+  CSV_HEADERS: [
+    "Antete lipsă sau duplicate",
+    "Заголовки отсутствуют или повторяются",
+    "Missing or duplicate headers",
+  ],
+  CSV_VERSION: [
+    "Versiune CSV necunoscută",
+    "Неизвестная версия CSV",
+    "Unknown CSV version",
+  ],
+  CSV_CATEGORY_MAPPING: [
+    "Alege o categorie existentă",
+    "Укажите существующую категорию",
+    "Map an existing category",
+  ],
+  CSV_CONTEXT_REQUIRES_JSON: [
+    "Scopul/datoria lipsește. Folosește restaurarea JSON.",
+    "Цель или долг отсутствует. Используйте JSON-восстановление.",
+    "Linked goal/liability is missing. Use JSON restore.",
+  ],
+  CSV_TRANSFER_OR_DIRECTION: [
+    "Transfer sau direcție necunoscută: exclude rândul",
+    "Перевод или неизвестное направление: исключите строку",
+    "Transfer or unknown direction: exclude this row",
+  ],
+  CSV_DIRECTION_CONFLICT: [
+    "Semnul sumei nu corespunde direcției",
+    "Знак суммы противоречит направлению",
+    "Amount sign conflicts with direction",
+  ],
+  CSV_DATE: [
+    "Data nu corespunde formatului",
+    "Дата не соответствует формату",
+    "Date does not match the format",
+  ],
+  CSV_OPERATION_ID: [
+    "ID de operațiune invalid",
+    "Некорректный ID операции",
+    "Invalid transaction ID",
+  ],
+  CSV_STATUS: [
+    "Stare de operațiune invalidă",
+    "Некорректный статус операции",
+    "Invalid operation status",
+  ],
+  CSV_COLUMN_COUNT: [
+    "Numărul coloanelor diferă",
+    "Число колонок не совпадает",
+    "Column count mismatch",
+  ],
+  CSV_INVALID_ROW: ["Rând invalid", "Некорректная строка", "Invalid row"],
+  CSV_STRICT_DUPLICATE: [
+    "Operațiune deja importată / ID duplicat",
+    "Операция уже импортирована / повтор ID",
+    "Already imported / duplicate ID",
+  ],
+  CSV_PREVIEW_EXPIRED: [
+    "Previzualizarea a expirat. Reîncarcă fișierul.",
+    "Предпросмотр истёк. Проверьте файл заново.",
+    "Preview expired. Preview the file again.",
+  ],
+  CSV_PREVIEW_STALE: [
+    "Datele s-au schimbat. Verifică din nou înainte de import.",
+    "Данные изменились. Повторите предпросмотр перед импортом.",
+    "Workspace changed. Preview again before importing.",
+  ],
+  CSV_INVALID_SELECTION: [
+    "Selecția conține rânduri invalide",
+    "Выбраны некорректные строки",
+    "Selection contains invalid rows",
+  ],
+  CSV_DUPLICATES_CONFIRMATION: [
+    "Confirmă explicit dublurile posibile",
+    "Подтвердите возможные дубли явно",
+    "Confirm possible duplicates explicitly",
+  ],
+  INVALID_LIABILITY_LINK: [
+    "Legătura datoriei nu corespunde sumei sau stării",
+    "Связь долга не соответствует сумме или состоянию",
+    "Liability link does not match its amount or state",
+  ],
   applyTemplates: [
     "Aplică repetările lunare",
     "Применить повторения для месяца",

@@ -52,7 +52,7 @@ final class WorkspaceService
     {
         $r = $create ? 'required' : 'sometimes';
         $money = $r.'|string|regex:/^[0-9]{1,15}$/';
-        $currency = $r.'|in:MDL,EUR,USD';
+        $currency = $r.'|in:MDL,EUR,USD,RON';
         $rules = match ($table) {
             'accounts' => ['name' => $r.'|string|max:255', 'kind' => $r.'|in:regular,savings', 'currency_code' => $currency, 'opening_balance_minor' => $money, 'include_in_total' => 'sometimes|boolean'],
             'categories' => ['name' => $r.'|string|max:255', 'kind' => $r.'|in:income,expense'],
@@ -60,7 +60,7 @@ final class WorkspaceService
             'liabilities' => ['kind' => $r.'|in:receivable,payable,credit', 'counterparty_name' => $r.'|string|max:255', 'principal_minor' => $money, 'currency_code' => $currency, 'due_on' => 'nullable|date_format:Y-m-d', 'comment' => 'sometimes|string|max:2000'],
             'budgets' => ['category_id' => $r.'|uuid', 'period_month' => $r.'|date_format:Y-m-d', 'currency_code' => $currency, 'limit_minor' => $money],
             'budget_templates' => ['category_id' => $r.'|uuid', 'start_month' => $r.'|date_format:Y-m-d', 'stop_month' => 'nullable|date_format:Y-m-d', 'currency_code' => $currency, 'limit_minor' => $money],
-            'operations' => ['type' => $r.'|in:income,expense,transfer,exchange', 'occurred_on' => $r.'|date_format:Y-m-d', 'description' => 'sometimes|string|max:2000', 'account_id' => 'nullable|uuid', 'from_account_id' => 'nullable|uuid', 'to_account_id' => 'nullable|uuid', 'category_id' => 'nullable|uuid', 'amount_minor' => $money, 'currency_code' => 'sometimes|in:MDL,EUR,USD', 'target_amount_minor' => 'nullable|string|regex:/^[1-9][0-9]{0,14}$/', 'target_currency_code' => 'nullable|in:MDL,EUR,USD', 'quoted_rate' => 'nullable|string|max:64'],
+            'operations' => ['type' => $r.'|in:income,expense,transfer,exchange', 'occurred_on' => $r.'|date_format:Y-m-d', 'description' => 'sometimes|string|max:2000', 'account_id' => 'nullable|uuid', 'from_account_id' => 'nullable|uuid', 'to_account_id' => 'nullable|uuid', 'category_id' => 'nullable|uuid', 'amount_minor' => $money, 'currency_code' => 'sometimes|in:MDL,EUR,USD,RON', 'target_amount_minor' => 'nullable|string|regex:/^[1-9][0-9]{0,14}$/', 'target_currency_code' => 'nullable|in:MDL,EUR,USD,RON', 'quoted_rate' => 'nullable|string|max:64'],
             default => [],
         };
         if (! $create) {

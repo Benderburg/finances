@@ -200,6 +200,36 @@ final class FinancialEngine
         return ['operation' => Projection::serialize($result), 'affected_balances' => $balances];
     }
 
+    public function postBatch(string $user, array $rows): array
+    {
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException('A batch requires CommandBus transaction.');
+        }
+        $ids = [];
+        $accounts = [];
+        foreach ($rows as $entry) {
+            $row = $this->normalize($user, $entry['operation'], null, ! empty($entry['operation']['goal_id']));
+            $id = (string) Str::uuid();
+            $status = $entry['status'];
+            DB::table('operations')->insert($row + ['id' => $id, 'user_id' => $user, 'revision' => 1, 'status' => $status, 'voided_at' => $status === 'voided' ? now() : null, 'created_at' => now(), 'updated_at' => now()]);
+            if ($status === 'posted') {
+                $accounts = array_merge($accounts, self::accountIds($row));
+                if ($row['goal_id']) {
+                    DB::table('goals')->where('user_id', $user)->where('id', $row['goal_id'])->increment('revision', 1, ['updated_at' => now()]);
+                }
+                if ($entry['liability_id'] ?? null) {
+                    DB::table('liability_settlements')->insert(['id' => (string) Str::uuid(), 'user_id' => $user, 'liability_id' => $entry['liability_id'], 'operation_id' => $id, 'revision' => 1, 'created_at' => now(), 'updated_at' => now()]);
+                    DB::table('liabilities')->where('user_id', $user)->where('id', $entry['liability_id'])->increment('revision', 1, ['updated_at' => now()]);
+                }
+            }
+            $this->audit($user, $id, 'created', null, $this->owned('operations', $user, $id));
+            $ids[] = $id;
+        }
+
+        // Validate the completed batch, so an earlier expense can be funded by a later income.
+        return ['operation_ids' => $ids, 'affected_balances' => $this->verifyBalances($user, $accounts)];
+    }
+
     public function amend(string $user, string $id, array $payload, bool $goalCommand = false): array
     {
         $old = $this->owned('operations', $user, $id);
@@ -243,9 +273,9 @@ final class FinancialEngine
             return ['operation' => Projection::serialize($old), 'affected_balances' => []];
         }
         DB::table('operations')->where('id', $id)->update(['status' => 'voided', 'voided_at' => now(), 'revision' => $old['revision'] + 1, 'updated_at' => now()]);
-        $balances = $this->verifyBalances($user,self::accountIds($old));
-        $after = $this->owned('operations',$user,$id);
-        $this->audit($user,$id,'voided',$old,$after);
+        $balances = $this->verifyBalances($user, self::accountIds($old));
+        $after = $this->owned('operations', $user, $id);
+        $this->audit($user, $id, 'voided', $old, $after);
 
         return ['operation' => Projection::serialize($after), 'affected_balances' => $balances];
     }

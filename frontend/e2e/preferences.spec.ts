@@ -34,11 +34,11 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   await page
     .getByRole("button", { name: "Autentificare", exact: true })
     .click();
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await page.goto("/settings");
   await page.getByLabel("Păstrează ultima sinteză pe acest dispozitiv").check();
   await page.goto("/");
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await expect
     .poll(() =>
       page.evaluate(
@@ -88,7 +88,7 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await settings(page, { locale: "ro", theme: "system" });
   await page.goto("/");
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   for (const width of [360, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     expect(
@@ -123,7 +123,7 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   await expect(
     page.getByRole("heading", { name: "Norocel · Fără conexiune" }),
   ).toBeVisible();
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await expect(
     page.getByRole("button", { name: "Salvează", exact: true }),
   ).toHaveCount(0);

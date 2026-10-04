@@ -41,6 +41,7 @@ import { AuthPage } from "./features/AuthPage";
 import { CategoriesPage, SettingsPage } from "./features/SettingsPage";
 import { ReportsPage } from "./features/ReportsPage";
 import { AdminPage } from "./features/AdminPage";
+import { CsvPage } from "./features/CsvPage";
 
 function useOnline() {
   const [online, setOnline] = useState(navigator.onLine);
@@ -251,6 +252,7 @@ const navigation = [
   { path: "/liabilities", key: "liabilities", icon: HandCoins },
   { path: "/reports", key: "reports", icon: ChartNoAxesCombined },
   { path: "/categories", key: "categories", icon: Tags },
+  { path: "/csv", key: "csvTitle", icon: ArrowLeftRight },
   { path: "/settings", key: "settings", icon: Settings },
 ];
 function Workspace({
@@ -392,6 +394,7 @@ function Workspace({
               element={<ReportsPage session={session} />}
             />
             <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/csv" element={<CsvPage />} />
             <Route
               path="/settings"
               element={<SettingsPage session={session} onLogout={onLogout} />}
@@ -495,11 +498,19 @@ function Offline({ onLogout }: { onLogout: () => void }) {
                   {t("total")} · {c}
                 </span>
                 <h2>
-                  {formatMoney(summary.balances[c].total_minor, c, locale)}
+                  {formatMoney(
+                    summary.balances[c]?.total_minor ?? "0",
+                    c,
+                    locale,
+                  )}
                 </h2>
                 <p>
                   {t("flow")} · {summary.month}:{" "}
-                  {formatMoney(summary.cash_flow[c].net_minor, c, locale)}
+                  {formatMoney(
+                    summary.cash_flow[c]?.net_minor ?? "0",
+                    c,
+                    locale,
+                  )}
                 </p>
               </section>
             ))}

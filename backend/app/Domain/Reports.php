@@ -15,7 +15,7 @@ final class Reports
     {
         $timezone = DB::table('user_settings')->where('user_id', $user)->value('timezone');
         $month = $p['month'] ?? now($timezone)->format('Y-m');
-        Validator::make(['month' => $month] + $p, ['month' => 'date_format:Y-m', 'date_from' => 'sometimes|date_format:Y-m-d', 'date_to' => 'sometimes|date_format:Y-m-d', 'currency_code' => 'sometimes|in:MDL,EUR,USD','goal_only'=>'sometimes|boolean','exclude_settlements'=>'sometimes|boolean'])->validate();
+        Validator::make(['month' => $month] + $p, ['month' => 'date_format:Y-m', 'date_from' => 'sometimes|date_format:Y-m-d', 'date_to' => 'sometimes|date_format:Y-m-d', 'currency_code' => 'sometimes|in:MDL,EUR,USD,RON', 'goal_only' => 'sometimes|boolean', 'exclude_settlements' => 'sometimes|boolean'])->validate();
         $to = $p['date_to'] ?? CarbonImmutable::parse($month.'-01')->endOfMonth()->toDateString();
         $from = $p['date_from'] ?? CarbonImmutable::parse($month.'-01')->subMonths(5)->toDateString();
         if ($from > $to || CarbonImmutable::parse($from)->diffInDays(CarbonImmutable::parse($to)) > 366) {
@@ -35,10 +35,10 @@ final class Reports
             if (isset($p['currency_code'])) {
                 $q->where('currency_code', $p['currency_code']);
             }
-            if ($p['goal_only']??false) {
+            if ($p['goal_only'] ?? false) {
                 $q->whereNotNull('goal_id');
             }
-            if ($p['exclude_settlements']??false) {
+            if ($p['exclude_settlements'] ?? false) {
                 $q->whereNotIn('id', DB::table('liability_settlements')->where('user_id', $user)->select('operation_id'));
             }
             $categories = [];

@@ -14,6 +14,7 @@ import type {
   Budget,
   BudgetTemplate,
   Category,
+  Currency,
   Dashboard,
   Goal,
   Liability,
@@ -38,6 +39,7 @@ import {
   type Field,
 } from "../components/ui";
 import { OperationForm } from "./OperationForm";
+import { FxRefresh, ValuationNote } from "./FxViews";
 
 export function OperationRow({
   o,
@@ -108,9 +110,18 @@ export function DashboardPage({
   const [month, setMonth] = useState(
     today(session.settings.timezone).slice(0, 7),
   );
+  const [displayCurrency, setDisplayCurrency] = useState<Currency>(
+    session.settings.base_currency_code,
+  );
+  const [valuationDate, setValuationDate] = useState(
+    today(session.settings.timezone),
+  );
   const q = useQuery({
-    queryKey: ["dashboard", month],
-    queryFn: () => get<Dashboard>("/dashboard?month=" + month),
+    queryKey: ["dashboard", month, displayCurrency, valuationDate],
+    queryFn: () =>
+      get<Dashboard>(
+        `/dashboard?month=${month}&display_currency=${displayCurrency}&valuation_date=${valuationDate}`,
+      ),
   });
   const ac = useAllList<Account>("/accounts");
   const cats = useAllList<Category>("/categories");
@@ -134,9 +145,96 @@ export function DashboardPage({
           onChange={(e) => setMonth(e.target.value)}
         />
       </div>
+      <div className="filters">
+        <label>
+          <span>{t("fxDisplayCurrency")}</span>
+          <select
+            aria-label={t("fxDisplayCurrency")}
+            value={displayCurrency}
+            onChange={(e) => setDisplayCurrency(e.target.value as Currency)}
+          >
+            {currencies.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{t("fxValuationDate")}</span>
+          <input
+            type="date"
+            required
+            value={valuationDate}
+            onChange={(e) => {
+              if (e.target.value) setValuationDate(e.target.value);
+            }}
+          />
+        </label>
+      </div>
       <State query={q}>
         {(d) => (
           <>
+            <section className="panel consolidated-panel">
+              <h2>
+                {t(
+                  d.consolidated.balances.incomplete
+                    ? "fxKnownBalance"
+                    : "fxTotalBalance",
+                )}{" "}
+                · {displayCurrency}
+              </h2>
+              <p className="large-money">
+                {formatMoney(
+                  d.consolidated.balances.known_subtotal.total_minor,
+                  displayCurrency,
+                  locale,
+                )}
+              </p>
+              <div className="summary-line">
+                <span>
+                  {t("available")}:{" "}
+                  {formatMoney(
+                    d.consolidated.balances.known_subtotal.available_minor,
+                    displayCurrency,
+                    locale,
+                  )}
+                </span>
+                <span>
+                  {t("savings")}:{" "}
+                  {formatMoney(
+                    d.consolidated.balances.known_subtotal.savings_minor,
+                    displayCurrency,
+                    locale,
+                  )}
+                </span>
+              </div>
+              <ValuationNote value={d.consolidated.balances} />
+              <h3>
+                {t("flow")} · {month} · {displayCurrency}
+              </h3>
+              <p>
+                {t("incomes")}:{" "}
+                {formatMoney(
+                  d.consolidated.cash_flow.known_subtotal.income_minor,
+                  displayCurrency,
+                  locale,
+                )}{" "}
+                · {t("expenses")}:{" "}
+                {formatMoney(
+                  d.consolidated.cash_flow.known_subtotal.expense_minor,
+                  displayCurrency,
+                  locale,
+                )}
+              </p>
+              <ValuationNote value={d.consolidated.cash_flow} />
+            </section>
+            <FxRefresh
+              date={valuationDate}
+              dates={Array.from(
+                new Set(
+                  d.consolidated.cash_flow.missing.map((m) => m.requested_on),
+                ),
+              )}
+            />
             <p className="subtle">{t("current")}</p>
             <div className="balance-grid">
               {order.map((c) => (
@@ -277,6 +375,11 @@ export function DashboardPage({
                         )}
                     </span>
                     <strong>
+                      {b.valuation.incomplete && (
+                        <small className="warning">
+                          {t("fxIncomplete")} ·{" "}
+                        </small>
+                      )}
                       {formatMoney(b.fact_minor, b.currency_code, locale)} /{" "}
                       {formatMoney(b.limit_minor, b.currency_code, locale)}
                     </strong>
@@ -1322,6 +1425,7 @@ export function BudgetsPage({ session }: { session: Session }) {
                       <p>{t("disabled")}</p>
                     ) : (
                       <>
+                        <ValuationNote value={b.valuation} />
                         <p className="large-money">
                           {formatMoney(b.fact_minor, b.currency_code, locale)}{" "}
                           <small>
@@ -1335,6 +1439,7 @@ export function BudgetsPage({ session }: { session: Session }) {
                         </p>
                         <Progress value={b.progress} />
                         <p
+                          hidden={b.valuation.incomplete}
                           className={
                             BigInt(b.remaining_minor) < 0n ? "warning" : ""
                           }
@@ -1352,7 +1457,7 @@ export function BudgetsPage({ session }: { session: Session }) {
                           )}
                         </p>
                         {Object.entries(b.other_currencies).map(([c, a]) => (
-                          <p className="warning" key={c}>
+                          <p className="subtle" key={c}>
                             {formatMoney(
                               a!,
                               c as Budget["currency_code"],

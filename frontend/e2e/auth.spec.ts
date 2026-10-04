@@ -39,7 +39,7 @@ test("register, email verification, income, expense, password reset and user iso
   );
   await expect.poll(() => mailbox().match(pattern)?.[0]).toBeTruthy();
   await page.goto(mailbox().match(pattern)![0].replaceAll("&amp;", "&"));
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await page.goto("/accounts");
   await page.getByRole("button", { name: "Adaugă", exact: true }).click();
   let dialog = page.getByRole("dialog");
@@ -108,7 +108,7 @@ test("register, email verification, income, expense, password reset and user iso
     page.getByRole("button", { name: "Autentificare", exact: true }),
   ).toBeVisible();
   await login(page, "dev@norocel.test", "local-testing-123");
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await page.goto("/accounts");
   await expect(
     page.getByRole("heading", { name: "Private " + stamp }),

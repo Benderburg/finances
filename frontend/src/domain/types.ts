@@ -1,4 +1,4 @@
-export type Currency = "MDL" | "EUR" | "USD";
+export type Currency = "MDL" | "EUR" | "USD" | "RON";
 export type Locale = "ro" | "ru" | "en";
 export interface Entity {
   id: string;
@@ -69,6 +69,7 @@ export interface Liability extends Entity {
   settlement_operation: Operation | null;
 }
 export interface Budget extends Entity {
+  valuation: Valuation;
   category_id: string;
   period_month: string;
   currency_code: Currency;
@@ -119,6 +120,8 @@ export interface Balances {
   savings_minor: string;
 }
 export interface Dashboard {
+  valuation_date: string;
+  consolidated: { balances: Valuation; cash_flow: Valuation };
   month: string;
   balances: Record<Currency, Balances>;
   cash_flow: Record<Currency, Flow>;
@@ -126,6 +129,30 @@ export interface Dashboard {
   goals: Goal[];
   budgets: Budget[];
   liabilities: Liability[];
+}
+export interface Valuation {
+  currency_code: Currency;
+  known_subtotal: Record<string, string>;
+  incomplete: boolean;
+  missing: { source: Currency; target: Currency; requested_on: string }[];
+  unconverted: {
+    amount_minor: string;
+    currency_code: Currency;
+    date: string;
+    bucket?: string;
+  }[];
+  meta: {
+    rates: {
+      id: string;
+      provider: string;
+      currency_code: Currency;
+      effective_on: string;
+      requested_on: string;
+      version: number;
+      fallback: boolean;
+    }[];
+    cache_key: string;
+  };
 }
 export interface List<T> {
   items: T[];

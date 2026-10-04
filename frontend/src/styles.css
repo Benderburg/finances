@@ -1401,3 +1401,8 @@ th {
     overflow: visible;
   }
 }
+:where(.fx-line) { display: block; margin: .3rem 0; }
+.fx-provenance { margin: .75rem 0; font-size: .85rem; color: var(--muted); }
+.fx-settings summary { cursor: pointer; font-weight: 600; }
+.csv-text { white-space: pre-wrap; min-width: 10rem; max-width: 26rem; overflow-wrap: anywhere; }
+.csv-mapping, .panel > fieldset { border: 0; padding: 0; margin: 1rem 0; min-width: 0; }

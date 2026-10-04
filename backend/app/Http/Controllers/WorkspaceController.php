@@ -7,6 +7,7 @@ use App\Domain\CommandBus;
 use App\Domain\DomainError;
 use App\Domain\Fields;
 use App\Domain\FinancialEngine;
+use App\Domain\FxAnalytics;
 use App\Domain\Projection;
 use App\Domain\Reports;
 use App\Domain\WorkspaceService;
@@ -25,7 +26,7 @@ final class WorkspaceController extends Controller
 
     public function profile(CommandRequest $r)
     {
-        $p = Fields::check($r->all(), ['full_name' => 'sometimes|string|max:255', 'avatar_url' => 'nullable|url:http,https|max:2048', 'locale' => 'sometimes|in:ro,ru,en', 'base_currency_code' => 'sometimes|in:MDL,EUR,USD', 'theme' => 'sometimes|in:light,dark,system', 'timezone' => 'sometimes|timezone']);
+        $p = Fields::check($r->all(), ['full_name' => 'sometimes|string|max:255', 'avatar_url' => 'nullable|url:http,https|max:2048', 'locale' => 'sometimes|in:ro,ru,en', 'base_currency_code' => 'sometimes|in:MDL,EUR,USD,RON', 'theme' => 'sometimes|in:light,dark,system', 'timezone' => 'sometimes|timezone']);
 
         return $this->bus->execute($r->user()->id, $r->header('Idempotency-Key', ''), 'profile', $p, function () use ($r, $p) {
             DB::table('users')->where('id', $r->user()->id)->update(array_intersect_key($p, array_flip(['full_name', 'avatar_url'])) + ['updated_at' => now()]);
@@ -41,9 +42,9 @@ final class WorkspaceController extends Controller
     public function dashboard(Request $r)
     {
         $month = $r->query('month', now(DB::table('user_settings')->where('user_id', $r->user()->id)->value('timezone'))->format('Y-m'));
-        $r->validate(['month' => 'sometimes|date_format:Y-m']);
+        $r->validate(['month' => 'sometimes|date_format:Y-m', 'display_currency' => 'sometimes|in:MDL,EUR,USD,RON', 'valuation_date' => 'sometimes|date_format:Y-m-d']);
 
-        return $this->bus->snapshot($r->user()->id, fn () => $this->projection->dashboard($r->user()->id, $month));
+        return $this->bus->snapshot($r->user()->id, fn ($s) => app(FxAnalytics::class)->dashboard($r->user()->id, $this->projection->dashboard($r->user()->id, $month), $s, $r->query()));
     }
 
     public function index(Request $r, string $resource)
@@ -101,7 +102,7 @@ final class WorkspaceController extends Controller
                     $data['liability_id'] = DB::table('liability_settlements')->where('user_id', $user)->where('operation_id', $row->id)->value('liability_id');
                 }
 
-        return $data;
+                return $data;
             })->all(), 'pagination' => ['page' => $page->currentPage(), 'pages' => $page->lastPage(), 'total' => $page->total()]] + ($table === 'liabilities' ? ['totals' => $this->projection->liabilityTotals($user)] : []);
         });
     }
@@ -118,7 +119,7 @@ final class WorkspaceController extends Controller
                 $data['liability_id'] = DB::table('liability_settlements')->where('user_id', $user)->where('operation_id', $id)->value('liability_id');
             }
 
-        return $data;
+            return $data;
         });
     }
 
@@ -142,7 +143,7 @@ final class WorkspaceController extends Controller
                 return $this->workspace->ensureMonth($user, $p);
             }
 
-        return $this->workspace->resource($user, $table, $action, $id, $p);
+            return $this->workspace->resource($user, $table, $action, $id, $p);
         });
     }
 
@@ -153,7 +154,9 @@ final class WorkspaceController extends Controller
 
     public function report(Request $r, string $kind, Reports $reports)
     {
-        return $this->bus->snapshot($r->user()->id, fn () => $reports->run($r->user()->id, $kind, $r->query()));
+        $r->validate(['display_currency' => 'sometimes|in:MDL,EUR,USD,RON']);
+
+        return $this->bus->snapshot($r->user()->id, fn ($s) => app(FxAnalytics::class)->report($r->user()->id, $kind, $reports->run($r->user()->id, $kind, $r->query()), $s, $r->query()));
     }
 
     public function export(Request $r, BackupService $backup)
@@ -172,16 +175,16 @@ final class WorkspaceController extends Controller
 
     public function apply(CommandRequest $r, BackupService $backup)
     {
-        return $this->bus->execute($r->user()->id, $r->header('Idempotency-Key', ''), 'restore', $r->all(), fn () => $backup->apply($r->user()->id,$r->all()));
+        return $this->bus->execute($r->user()->id, $r->header('Idempotency-Key', ''), 'restore', $r->all(), fn () => $backup->apply($r->user()->id, $r->all()));
     }
 
-    public function previousBackup(Request $r,string $id)
+    public function previousBackup(Request $r, string $id)
     {
-        $backup = DB::table('restore_backups')->where('user_id',$r->user()->id)->where('id',$id)->first();
+        $backup = DB::table('restore_backups')->where('user_id', $r->user()->id)->where('id', $id)->first();
         if (! $backup) {
-            throw new DomainError('NOT_FOUND',404);
+            throw new DomainError('NOT_FOUND', 404);
         }
 
-        return response($backup->payload)->header('Content-Type','application/json')->header('Content-Disposition','attachment; filename="norocel-before-restore.json"');
+        return response($backup->payload)->header('Content-Type', 'application/json')->header('Content-Disposition', 'attachment; filename="norocel-before-restore.json"');
     }
 }

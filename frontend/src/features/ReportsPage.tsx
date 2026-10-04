@@ -2,19 +2,32 @@ import { useContext, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
 import { get } from "../data/api";
-import type { Category, Currency, Flow, Session } from "../domain/types";
+import type {
+  Category,
+  Currency,
+  Flow,
+  Session,
+  Valuation,
+} from "../domain/types";
 import { currencies, formatMoney, today } from "../domain/money";
 import { categoryName, LocaleContext, useT } from "../i18n";
 import { Empty, State, useList } from "../components/ui";
+import { FxRefresh, ValuationNote } from "./FxViews";
 
 interface CashFlowReport {
+  consolidated: Valuation;
   date_from: string;
   date_to: string;
   generated_at: string;
   currencies: Record<Currency, Flow>;
-  months: { month: string; currencies: Record<Currency, Flow> }[];
+  months: {
+    month: string;
+    currencies: Record<Currency, Flow>;
+    consolidated: Valuation;
+  }[];
 }
 interface ExpensesReport {
+  consolidated: Valuation;
   categories: {
     category_id: string;
     currency_code: Currency;
@@ -22,6 +35,7 @@ interface ExpensesReport {
   }[];
 }
 interface BalanceReport {
+  consolidated_points: { date: string; valuation: Valuation }[];
   reconstructed_history: boolean;
   accounts: {
     account_id: string;
@@ -44,8 +58,11 @@ export function ReportsPage({ session }: { session: Session }) {
     [goalOnly, setGoalOnly] = useState(false),
     [excludeSettlements, setExclude] = useState(false);
   const flow = useQuery({
-      queryKey: ["report-flow", month],
-      queryFn: () => get<CashFlowReport>("/reports/cash-flow?month=" + month),
+      queryKey: ["report-flow", month, currency],
+      queryFn: () =>
+        get<CashFlowReport>(
+          `/reports/cash-flow?month=${month}&display_currency=${currency}`,
+        ),
     }),
     expenses = useQuery({
       queryKey: [
@@ -57,14 +74,14 @@ export function ReportsPage({ session }: { session: Session }) {
       ],
       queryFn: () =>
         get<ExpensesReport>(
-          `/reports/expenses?month=${month}&currency_code=${currency}${goalOnly ? "&goal_only=1" : ""}${excludeSettlements ? "&exclude_settlements=1" : ""}`,
+          `/reports/expenses?month=${month}&display_currency=${currency}${goalOnly ? "&goal_only=1" : ""}${excludeSettlements ? "&exclude_settlements=1" : ""}`,
         ),
     }),
     balances = useQuery({
       queryKey: ["report-balances", month, currency],
       queryFn: () =>
         get<BalanceReport>(
-          `/reports/balances?month=${month}&currency_code=${currency}`,
+          `/reports/balances?month=${month}&display_currency=${currency}`,
         ),
     }),
     cats = useList<Category>("/categories?per_page=100");
@@ -77,6 +94,14 @@ export function ReportsPage({ session }: { session: Session }) {
           {t("print")}
         </button>
       </div>
+      <FxRefresh
+        date={today(session.settings.timezone)}
+        dates={
+          flow.data?.data.consolidated.missing
+            .map((m) => m.requested_on)
+            .filter((d) => d.startsWith(month)) ?? []
+        }
+      />
       <div className="filters print-hide">
         <label>
           <span>{t("month")}</span>
@@ -89,6 +114,7 @@ export function ReportsPage({ session }: { session: Session }) {
         <label>
           <span>{t("currency")}</span>
           <select
+            aria-label={t("currency")}
             value={currency}
             onChange={(e) => setCurrency(e.target.value as Currency)}
           >
@@ -121,7 +147,7 @@ export function ReportsPage({ session }: { session: Session }) {
         <State query={flow}>
           {(d) => {
             const max = d.months.reduce((m, row) => {
-              const f = row.currencies[currency];
+              const f = row.consolidated.known_subtotal;
               return [BigInt(f.income_minor), BigInt(f.expense_minor)].reduce(
                 (a, b) => (a > b ? a : b),
                 m,
@@ -129,6 +155,7 @@ export function ReportsPage({ session }: { session: Session }) {
             }, 1n);
             return (
               <>
+                <ValuationNote value={d.consolidated} />
                 <p className="subtle">
                   {d.date_from} — {d.date_to} · {d.generated_at}
                 </p>
@@ -141,12 +168,12 @@ export function ReportsPage({ session }: { session: Session }) {
                           style={{
                             height:
                               scaled(
-                                row.currencies[currency].income_minor,
+                                row.consolidated.known_subtotal.income_minor,
                                 max,
                               ) + "%",
                           }}
                           title={formatMoney(
-                            row.currencies[currency].income_minor,
+                            row.consolidated.known_subtotal.income_minor,
                             currency,
                             locale,
                           )}
@@ -156,12 +183,12 @@ export function ReportsPage({ session }: { session: Session }) {
                           style={{
                             height:
                               scaled(
-                                row.currencies[currency].expense_minor,
+                                row.consolidated.known_subtotal.expense_minor,
                                 max,
                               ) + "%",
                           }}
                           title={formatMoney(
-                            row.currencies[currency].expense_minor,
+                            row.consolidated.known_subtotal.expense_minor,
                             currency,
                             locale,
                           )}
@@ -184,24 +211,29 @@ export function ReportsPage({ session }: { session: Session }) {
                     <tbody>
                       {d.months.map((row) => (
                         <tr key={row.month}>
-                          <td>{row.month}</td>
+                          <td>
+                            {row.month}
+                            {row.consolidated.incomplete
+                              ? ` · ${t("fxIncomplete")}`
+                              : ""}
+                          </td>
                           <td>
                             {formatMoney(
-                              row.currencies[currency].income_minor,
+                              row.consolidated.known_subtotal.income_minor,
                               currency,
                               locale,
                             )}
                           </td>
                           <td>
                             {formatMoney(
-                              row.currencies[currency].expense_minor,
+                              row.consolidated.known_subtotal.expense_minor,
                               currency,
                               locale,
                             )}
                           </td>
                           <td>
                             {formatMoney(
-                              row.currencies[currency].net_minor,
+                              row.consolidated.known_subtotal.net_minor,
                               currency,
                               locale,
                             )}
@@ -222,38 +254,56 @@ export function ReportsPage({ session }: { session: Session }) {
         </h2>
         <State query={expenses}>
           {(d) => {
-            const max = d.categories.reduce(
+            const converted = Object.entries(d.consolidated.known_subtotal).map(
+              ([category_id, amount_minor]) => ({
+                category_id,
+                amount_minor,
+                currency_code: currency,
+              }),
+            );
+            const max = converted.reduce(
               (m, c) =>
                 BigInt(c.amount_minor) > m ? BigInt(c.amount_minor) : m,
               1n,
             );
-            return d.categories.length ? (
-              <div className="expense-structure">
-                {d.categories.map((c) => {
-                  const cat = cats.data?.data.items.find(
-                    (x) => x.id === c.category_id,
-                  );
-                  return (
-                    <div key={c.category_id}>
-                      <div className="summary-line">
-                        <span>
-                          {cat ? categoryName(cat, t) : t("category")}
-                        </span>
-                        <strong>
-                          {formatMoney(c.amount_minor, c.currency_code, locale)}
-                        </strong>
-                      </div>
-                      <div className="progress">
-                        <span
-                          style={{ width: scaled(c.amount_minor, max) + "%" }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <Empty />
+            return (
+              <>
+                <ValuationNote value={d.consolidated} />
+                {converted.length ? (
+                  <div className="expense-structure">
+                    {converted.map((c) => {
+                      const cat = cats.data?.data.items.find(
+                        (x) => x.id === c.category_id,
+                      );
+                      return (
+                        <div key={c.category_id}>
+                          <div className="summary-line">
+                            <span>
+                              {cat ? categoryName(cat, t) : t("category")}
+                            </span>
+                            <strong>
+                              {formatMoney(
+                                c.amount_minor,
+                                c.currency_code,
+                                locale,
+                              )}
+                            </strong>
+                          </div>
+                          <div className="progress">
+                            <span
+                              style={{
+                                width: scaled(c.amount_minor, max) + "%",
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Empty />
+                )}
+              </>
             );
           }}
         </State>
@@ -266,6 +316,34 @@ export function ReportsPage({ session }: { session: Session }) {
         <State query={balances}>
           {(d) => (
             <>
+              <details>
+                <summary>
+                  {t("fxTotalBalance")} · {currency}
+                </summary>
+                <div className="table-wrap">
+                  <table>
+                    <tbody>
+                      {d.consolidated_points.map((p) => (
+                        <tr key={p.date}>
+                          <td>{p.date}</td>
+                          <td>
+                            {formatMoney(
+                              p.valuation.known_subtotal.amount_minor ?? "0",
+                              currency,
+                              locale,
+                            )}
+                          </td>
+                          <td>
+                            {p.valuation.incomplete && (
+                              <ValuationNote value={p.valuation} />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
               {d.accounts.length ? (
                 d.accounts.map((a) => {
                   let min = 0n,

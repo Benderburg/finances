@@ -1,6 +1,6 @@
 import type { Currency, Locale } from "./types";
 
-export const currencies: Currency[] = ["MDL", "EUR", "USD"];
+export const currencies: Currency[] = ["MDL", "EUR", "USD", "RON"];
 export const maxMinor = 999999999999999n;
 export function parseMoney(value: string, allowZero = false): string {
   const plain = value.trim().replace(/[\s\u00a0\u202f]/g, "");

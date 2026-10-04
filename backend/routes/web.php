@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\StageBController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Requests\CommandRequest;
 use Illuminate\Http\Request;
@@ -37,6 +38,11 @@ Route::prefix('api/v1')->middleware(['auth:sanctum', 'auth.session'])->group(fun
     Route::patch('me', [WorkspaceController::class, 'profile']);
     Route::middleware('verified')->group(function () {
         Route::get('dashboard', [WorkspaceController::class, 'dashboard']);
+        Route::get('fx/reference', [StageBController::class, 'reference'])->middleware('throttle:reports');
+        Route::post('operations/quote', [StageBController::class, 'quote'])->middleware('throttle:reports');
+        Route::get('operations/export.csv', [StageBController::class, 'export'])->middleware('throttle:reports');
+        Route::post('csv/preview', [StageBController::class, 'preview'])->middleware('throttle:imports');
+        Route::post('csv/apply', [StageBController::class, 'apply'])->middleware('throttle:imports');
         Route::post('budgets/ensure-month', fn (CommandRequest $r) => app(WorkspaceController::class)->mutate($r, 'budgets', null, 'ensure-month'));
         Route::patch('goals/{id}/expenses/{operation}', [WorkspaceController::class, 'amendGoalExpense']);
         foreach (['accounts' => ['archive', 'unarchive'], 'categories' => ['archive', 'unarchive'], 'operations' => ['void'], 'goals' => ['spend', 'cancel', 'resume'], 'liabilities' => ['settle', 'void-settlement', 'cancel', 'resume'], 'budget-templates' => ['stop']] as $resource => $actions) {
@@ -70,8 +76,8 @@ Route::any('auth/{path}', fn () => abort(404))->where('path', '.*');
 Route::get('/{path?}', function () {
     $file = public_path('build/index.html');
     if (! is_file($file)) {
-        return response('Build frontend first: cd frontend && npm ci && npm run build',503);
+        return response('Build frontend first: cd frontend && npm ci && npm run build', 503);
     }
 
-return response()->file($file,['Cache-Control' => 'no-cache']);
-})->where('path','^(?!sanctum(?:/|$)).*');
+    return response()->file($file, ['Cache-Control' => 'no-cache']);
+})->where('path', '^(?!sanctum(?:/|$)).*');

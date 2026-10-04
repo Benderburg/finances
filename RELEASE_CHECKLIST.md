@@ -66,6 +66,6 @@ Service worker действительно установлен и контрол
 
 Рабочая Supabase-база не читалась и не изменялась. На новом сайте один подтверждённый администратор, Main account с нулевым остатком и 15 системных категорий; старые Supabase-пароли и сессии не переносятся. Пароли и APP_KEY находятся вне Git. Процедура следующего выпуска: `docs/TIMEWEB_DEPLOYMENT.md` и `RUNBOOK.md`; историческая репетиция миграции — `MIGRATION_REPORT.md`.
 
-## Следующий инкремент B
+## Инкремент B — 2026-10-04
 
-BNM reference/historical rates, cross-currency conversion для отчётов/бюджетов и CSV import/export отложены до приёмки A, как требует ТЗ. Добавлены только расширяемые contracts; готовность этих функций не заявляется, неработающие кнопки не показываются.
+После приёмки A добавлены RON, версионные BNM reference/historical rates, cross-currency valuation для dashboard/reports/budgets, indicative quote, CSV export с обратимой защитой Excel и атомарный additive import с preview/mapping/duplicate confirmation. Серверная проверка PHP 8.5: **41 tests / 413 assertions**, frontend unit: **4 passed**, production build успешен. Полный E2E на PHP-FPM/Nginx: **14 passed**, desktop/mobile, включая CSV и RON. Детали и практические пределы — [Stage B](docs/STAGE_B.md). Обновление использует отдельную миграцию и сохраняет существующие workspace/env/APP_KEY.

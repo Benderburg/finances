@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\ReferenceRateProvider;
+use App\Domain\BnmRateProvider;
 use App\Models\FinancialRecord;
 use App\Policies\FinancialRecordPolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -19,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Services use the container's constructor injection.
+        $this->app->bind(ReferenceRateProvider::class, BnmRateProvider::class);
     }
 
     /**

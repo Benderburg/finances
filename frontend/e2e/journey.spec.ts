@@ -282,7 +282,7 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
   });
   await page.emulateMedia({ media: "screen" });
   await goto(page, "/");
-  await expect(page.locator(".balance-card")).toHaveCount(3);
+  await expect(page.locator(".balance-card")).toHaveCount(4);
   await expect(
     page.locator(".operation-row").filter({ hasText: "…" }),
   ).toHaveCount(0);

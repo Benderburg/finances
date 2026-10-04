@@ -25,7 +25,7 @@ Status: 401 unauthenticated, 403 forbidden/unverified/admin required, 404 missin
 ## Primitives and common fields
 
 - UUID identifiers; record `revision` is a JSON integer. No user-supplied `user_id`, balance, status, privileges or derived effective rate.
-- Money `*_minor`: canonical base-10 integer **string**, `"1"` through `"999999999999999"`. Opening and legacy saved values may be `"0"`. Currency enum `MDL|EUR|USD`, scale 2. Totals can exceed the individual-value limit; net/history/remaining totals may be negative strings. JSON numbers for minor money are rejected.
+- Money `*_minor`: canonical base-10 integer **string**, `"1"` through `"999999999999999"`. Opening and legacy saved values may be `"0"`. Currency enum `MDL|EUR|USD|RON`, scale 2. Totals can exceed the individual-value limit; net/history/remaining totals may be negative strings. JSON numbers for minor money are rejected.
 - Rates: positive decimal strings, at most 12 fractional places, maximum `999999999999999999.999999999999`. Convention: source units per 1 target unit. `source_minor / quoted_rate` rounds half up once to target minor units. Effective rate comes from the actual debit/credit to 12 places. Quoted+received disagreement is rejected.
 - `occurred_on`, `deadline`, `due_on`: calendar `YYYY-MM-DD`. Future posted entries immediately affect current balance. UTC timestamps are returned as SQL UTC timestamps or ISO-8601 (user/auth timestamps); calendar dates are not shifted by timezone. Every month field is the first day (`YYYY-MM-01`); query `month` is `YYYY-MM`.
 - Names max 255, description/comment max 2000, goal icon max 32; user text is escaped by React.
@@ -93,6 +93,22 @@ GET `/reports/cash-flow`, `/reports/expenses`, `/reports/balances`; 60/minute pe
 - balances: `{reconstructed_history:true,accounts:[{account_id,name,currency_code,points:[{date,balance_minor}]}]}`; opening + posted dated operations, preserves negative reconstructed history; current balance invariant is separate.
 
 Print layouts include selected currency, period, generation time and original values; currencies never silently added together.
+
+Stage B: dashboard accepts `display_currency=MDL|EUR|USD|RON`, `valuation_date=YYYY-MM-DD` and adds `consolidated.{balances,cash_flow}`. Reports accept `display_currency`; cash-flow adds consolidated totals/months, expenses consolidated category buckets, balances `consolidated_points`. Valuations contain `currency_code`, string `known_subtotal`, `incomplete`, `missing[{source,target,requested_on}]`, original `unconverted`, and `meta.{rates,context,cache_key}`. Rate metadata carries immutable record IDs/versions, requested/effective dates and fallback. Missing rates never imply zero original money. Budgets add `valuation`; fact uses per-operation historical conversion to the fixed budget currency.
+
+## Reference rates / CSV (Stage B)
+
+All endpoints below require verified session/CSRF for POST, private no-store responses. FX/report routes use reports limiter (60/min); CSV POST uses imports limiter (5/min).
+
+| Route | Contract |
+|---|---|
+| GET `/fx/reference` | required date YYYY-MM-DD; optional refresh=1 fetches BNM outside financial transactions; returns rates and fetch availability |
+| POST `/operations/quote` | amount_minor string, currency_code, target_currency_code, date; indicative preview only, amount_minor nullable + missing/rates/incomplete |
+| GET `/operations/export.csv` | full journal CSV v1 attachment; safe=1 default, safe=0 raw; reversible formula protection |
+| POST `/csv/preview` | multipart file <=5MiB and JSON-string options; initial detection returns headers/sample/source_accounts/count/encoding/delimiter/needs_confirmation; confirmed mapping returns owner-bound preview_id/workspace_revision/rows |
+| POST `/csv/apply` | command key, preview_id UUID, selected_rows integer array, accept_possible_duplicates boolean; atomic additive batch; returns imported/operation_ids/affected_balances |
+
+Preview options: `confirmed` boolean, encoding, delimiter, mapping object (date/amount/direction/currency/description/category/transaction_id → header), account_id, income_category_id/expense_category_id, date_format, decimal_separator, income_value/expense_value; own format supports account_mappings (source UUID → existing owned UUID). Limits: 10,000 data rows, 30-minute preview. Mapping and row errors precede financial commit; strict duplicates cannot be selected; possible duplicates require explicit confirmation. Source-row receipts and command tombstones survive workspace replacement. See [Stage B](docs/STAGE_B.md) for encoding, safe CSV format, link constraints and rate-sync CLI.
 
 ## Backup / restore
 
