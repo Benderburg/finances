@@ -28,7 +28,7 @@ Production `.env` заполнить по `backend/.env.example.timeweb`. Соз
 
 Timeweb отдаёт существующие статические файлы с `max-age=31536000`. После сборки PWA удалить только `public/sw.js` и `public/manifest.webmanifest`: build script сохраняет вторые копии в `resources/pwa`, а Laravel обслуживает прежние URL с `Cache-Control: no-cache`, правильным MIME и областью `/`. Hashed assets и icons остаются статическими. Пересобрать route cache после изменения routes. Настройки `.htaccess` не влияют на статику Nginx: [документация Timeweb](https://timeweb.com/ru/docs/virtualnyj-hosting/obshchaya-informaciya-o-hostinge/osobennosti-tekhnicheskogo-resheniya/).
 
-Проверить HTTPS, `/up`, login/logout, `/admin`, deep-link reload, Secure/HttpOnly cookies, запрет доступа к `.env`/vendor/storage, no-store для API и обновление PWA. Почта настроена на Exim через `sendmail -bs -i`; sender должен существовать на своём домене. Доставка реальных писем отдельно от проверки приложения; запуск не подтверждает доставку. Документация: [Laravel на Timeweb](https://timeweb.com/ru/docs/virtualnyj-hosting/prilozheniya-i-frejmvorki/laravel/), [PHP](https://timeweb.com/ru/docs/virtualnyj-hosting/php/izmenenie-versii-php/), [почта](https://timeweb.com/ru/docs/pochta/osnovnye-voprosy-po-rabote-s-pochtoj/otpravka-pochty-cherez-skripty/).
+Проверить HTTPS, `/up`, login/logout, `/admin`, deep-link reload, Secure/HttpOnly cookies, запрет доступа к `.env`/vendor/storage, no-store для API и обновление PWA. Почта настроена на Exim через `/usr/sbin/sendmail -t -i`, отправитель — существующий ящик `notifications@noros.net`, имя — Norocel. Прокси sendmail этого хостинга не поддерживает режим `-bs`; Symfony передаёт envelope sender через `-f`. Доставку проверять настоящим письмом отдельно от тестов приложения; успешная проверка 2026-10-04 описана ниже. Документация: [Laravel на Timeweb](https://timeweb.com/ru/docs/virtualnyj-hosting/prilozheniya-i-frejmvorki/laravel/), [PHP](https://timeweb.com/ru/docs/virtualnyj-hosting/php/izmenenie-versii-php/), [почта](https://timeweb.com/ru/docs/pochta/osnovnye-voprosy-po-rabote-s-pochtoj/otpravka-pochty-cherez-skripty/).
 
 ## Изолированная проверка PHP 8.5
 
@@ -96,3 +96,62 @@ Timeweb предупреждал о DDoS и перебоях: один HTTP-за
 `index.html`, SW и manifest, скачанными до обновления. Его следует
 распаковать в тот же backend; старые assets уже доступны на сервере.
 Данные и `.env` при таком откате не затрагиваются.
+
+## Регистрация и подтверждение email — 2026-10-04
+
+Опубликован код `a333999` из ветки `norocel-2`. Ошибка регистрации была
+вызвана отправкой через `sendmail -bs -i`: установленный на Timeweb
+`php-sendmail-proxy` закрывал процесс, потому что не поддерживает `-bs`.
+При этом аккаунт уже сохранялся в базе. Теперь настроены
+`MAIL_MAILER=sendmail`, `MAIL_SENDMAIL_PATH="/usr/sbin/sendmail -t -i"`,
+`MAIL_FROM_ADDRESS=notifications@noros.net`, `MAIL_FROM_NAME=Norocel`.
+SMTP-пароль не требуется; используется почтовый сервис хостинга.
+
+Регистрация возвращает созданный аккаунт даже при временном сбое почты:
+интерфейс объясняет проблему и позволяет повторить отправку без новой
+регистрации. До подтверждения финансовый API возвращает 403
+`EMAIL_NOT_VERIFIED`. Письмо и экран подтверждения учитывают язык
+RO/RU/EN. Ссылка действует 60 минут; первое подтверждение открывает
+сессию пользователя. Использованная ссылка после выхода ведёт на
+обычный вход и не создаёт новую сессию. Другая активная учётная запись
+не переключается. Повторная отправка ограничена одним письмом в минуту.
+
+Архив `norocel-mail-afc866e4181e5b9b.zip` (236656 байт), SHA-256:
+`ddda4439441384bd5daac218c9574b9b8c1132e7dd932c76f5fe02abb11190ec`.
+Обновлены auth controller/service/middleware, provider, bootstrap,
+routes, frontend build и `resources/pwa`. Миграции не запускались;
+финансовые расчёты, vendor, storage и расписание BNM не изменялись.
+В `.env` заменены только четыре указанных MAIL-параметра; остальные
+байты файла, включая APP_KEY и параметры базы, сохранены.
+Снимки до/после обновления подтвердили одинаковые количества строк
+и контрольную сумму существующих пользователей и финансовых данных.
+Пересобраны config/route/view caches; приложение выведено из maintenance.
+Временный архив и вспомогательные скрипты удалены из корня сайта.
+Приватный снимок для отката сохранён в
+`/home/c/ck85651/norocel/.deploy/mail-afc866e4181e5b9b/rollback.tar.gz`.
+
+PWA version: `afc866e4181e5b9b`; bundle: `index-Cce0iXyY.js`;
+CSS: `index-CqYSuUdM.css`. HTML, SW, manifest и JS скачаны с production
+и совпали по SHA-256 с локальной сборкой; `/up` — 200.
+SW/manifest сохранили `public, no-cache`; старые assets оставлены.
+Локально прошли 46 backend tests / 463 assertions, 4 frontend unit tests,
+сборка и 4 desktop/mobile auth E2E: регистрация, подтверждение в другом
+браузерном контексте, вход, восстановление пароля, изоляция пользователей,
+ошибка доставки и повторная отправка. Тесты выполнялись на отдельной
+QA-базе, а не на Timeweb.
+
+Проведена одна настоящая тестовая регистрация `Norocel mail QA` с адресом
+`notifications@noros.net`. Письмо от `Norocel <notifications@noros.net>`
+с темой `Norocel: confirmă adresa de email` пришло во входящие этого ящика.
+После выхода из приложения первое открытие ссылки подтвердило email
+и открыло dashboard через `/?verified=1`. После повторного выхода та же
+ссылка открыла `/login?verified=1`, без автоматического входа.
+Проверочная сессия завершена; отдельный подтверждённый QA-аккаунт остаётся
+с нулевым Main account и без финансовых операций. Снимок письма сохранён
+локально в `.runtime/ui-redesign/timeweb-verification-mail.png`.
+В публичном DNS подтверждены SPF `include:_spf.timeweb.ru` и
+DMARC `p=quarantine; pct=100`; DKIM отдельно не подтверждался.
+
+Если предыдущая регистрация показала 500, аккаунт мог уже сохраниться:
+нужно войти с тем же email и паролем и повторить отправку на экране
+подтверждения. Для установленной PWA принять доступное обновление.
