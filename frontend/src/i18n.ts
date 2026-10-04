@@ -978,6 +978,46 @@ const copy: Record<string, [string, string, string]> = {
     "Письмо отправлено",
     "Verification sent",
   ],
+  MAIL_DELIVERY_FAILED: [
+    "Nu am putut trimite mesajul. Contul tău este păstrat. Încearcă să retrimiți scrisoarea mai târziu.",
+    "Не удалось отправить письмо. Ваш аккаунт сохранён. Попробуйте отправить письмо ещё раз позже.",
+    "We could not send the email. Your account is saved. Try sending the email again later.",
+  ],
+  EMAIL_NOT_VERIFIED: [
+    "Confirmă adresa de email pentru a continua.",
+    "Подтвердите почту для продолжения.",
+    "Verify your email address to continue.",
+  ],
+  registrationVerification: [
+    "Îți vom trimite un link de confirmare. Confirmă emailul pentru a intra în cont.",
+    "Отправим ссылку подтверждения на вашу почту. Подтвердите email, чтобы войти в аккаунт.",
+    "We will email you a confirmation link. Verify your email to access your account.",
+  ],
+  verificationInstructions: [
+    "Contul tău este creat. Deschide mesajul de la Norocel și apasă pe linkul de confirmare. Linkul este valabil 60 de minute.",
+    "Ваш аккаунт создан. Откройте письмо от Norocel и нажмите ссылку подтверждения. Ссылка действует 60 минут.",
+    "Your account is created. Open the email from Norocel and follow the confirmation link. It expires in 60 minutes.",
+  ],
+  verificationSpam: [
+    "Expeditor: notifications@noros.net. Dacă mesajul nu apare, verifică și folderul Spam.",
+    "Отправитель: notifications@noros.net. Если письма нет, проверьте папку «Спам».",
+    "Sender: notifications@noros.net. If the email is missing, check your spam folder.",
+  ],
+  verificationCheck: [
+    "Am confirmat emailul",
+    "Я подтвердил почту",
+    "I have verified my email",
+  ],
+  verificationInvalid: [
+    "Linkul a expirat sau nu este valid. Autentifică-te și cere un nou mesaj de confirmare.",
+    "Ссылка истекла или недействительна. Войдите и запросите новое письмо подтверждения.",
+    "This link has expired or is invalid. Sign in and request a new confirmation email.",
+  ],
+  emailVerified: [
+    "Emailul este confirmat. Poți intra cu emailul și parola ta.",
+    "Почта подтверждена. Войдите с вашим email и паролем.",
+    "Your email is verified. Sign in with your email and password.",
+  ],
   EMAIL_CONFIRMATION_SENT: [
     "Confirmă noua adresă prin scrisoare",
     "Подтвердите новый адрес по ссылке из письма",

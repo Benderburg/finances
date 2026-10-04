@@ -24,11 +24,11 @@ Route::prefix('auth')->middleware('throttle:auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('forgot-password', [AuthController::class, 'forgot']);
     Route::post('reset-password', [AuthController::class, 'reset']);
-    Route::get('verify-email/{id}/{hash}', [AuthController::class, 'verify'])->middleware('signed')->name('verification.verify');
+    Route::get('verify-email/{id}/{hash}', [AuthController::class, 'verify'])->name('verification.verify');
     Route::get('confirm-email/{id}/{hash}', [AuthController::class, 'confirmEmail'])->middleware('signed')->name('email.confirm');
     Route::middleware(['auth:sanctum', 'auth.session'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
-        Route::post('resend-verification', [AuthController::class, 'resend']);
+        Route::post('resend-verification', [AuthController::class, 'resend'])->middleware('throttle:verification');
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('email-change', [AuthController::class, 'emailChange']);
     });

@@ -46,6 +46,7 @@ import {
 } from "./features/FinancePages";
 import { OperationForm } from "./features/OperationForm";
 import { AuthPage } from "./features/AuthPage";
+import { VerificationPage } from "./features/VerificationPage";
 import { CategoriesPage, SettingsPage } from "./features/SettingsPage";
 import { ReportsPage } from "./features/ReportsPage";
 import { AdminPage } from "./features/AdminPage";
@@ -229,28 +230,14 @@ export function App() {
             <AuthPage key={location.pathname} onAuthenticated={authenticated} />
           </>
         ) : !session.user.email_verified_at ? (
-          <main className="verification">
-            <span className="brand-mark">✦</span>
-            <h1>{translate(locale, "verify")}</h1>
-            <p>{session.user.email}</p>
-            <button
-              className="primary"
-              onClick={() =>
-                void request("/auth/resend-verification", "POST", {}).catch(
-                  setLogoutError,
-                )
-              }
-            >
-              {translate(locale, "resend")}
-            </button>
-            <button onClick={() => void me.refetch()}>
-              {translate(locale, "refresh")}
-            </button>
-            <button onClick={() => void logout()}>
-              {translate(locale, "logout")}
-            </button>
-            <ErrorMessage error={logoutError} />
-          </main>
+          <VerificationPage
+            email={session.user.email}
+            onRefresh={async () => {
+              await me.refetch();
+            }}
+            onLogout={logout}
+            logoutError={logoutError}
+          />
         ) : null}
       </FeedbackProvider>
     </LocaleContext>

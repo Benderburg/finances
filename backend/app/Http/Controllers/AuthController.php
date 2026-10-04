@@ -7,8 +7,8 @@ use App\Domain\Fields;
 use App\Domain\WorkspaceService;
 use App\Models\User;
 use App\Notifications\ConfirmEmailChange;
+use App\Services\VerificationMail;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,20 +22,25 @@ use Illuminate\Validation\Rules\Password as PasswordRule;
 
 final class AuthController extends Controller
 {
-    public function register(Request $r, WorkspaceService $workspace)
+    public function register(Request $r, WorkspaceService $workspace, VerificationMail $mail)
     {
-        $p = Fields::check($r->all(), ['full_name' => 'required|string|max:255', 'email' => 'required|email|max:255|unique:users', 'password' => ['required', 'confirmed', PasswordRule::min(12)], 'password_confirmation' => 'required|string']);
+        $input = $r->all();
+        if (is_string($input['email'] ?? null)) {
+            $input['email'] = mb_strtolower(trim($input['email']));
+        }
+        $p = Fields::check($input, ['full_name' => 'required|string|max:255', 'email' => 'required|email|max:255|unique:users', 'password' => ['required', 'confirmed', PasswordRule::min(12)], 'password_confirmation' => 'required|string', 'locale' => 'sometimes|in:ro,ru,en']);
         $user = DB::transaction(function () use ($p, $workspace) {
             $user = User::create(['full_name' => $p['full_name'], 'email' => mb_strtolower($p['email']), 'password' => $p['password']]);
             $workspace->initialize($user->id);
+            DB::table('user_settings')->where('user_id', $user->id)->update(['locale' => $p['locale'] ?? 'ro']);
 
             return $user;
         });
-        event(new Registered($user));
         Auth::guard('web')->login($user);
         $r->session()->regenerate();
+        $sent = $mail->send($user);
 
-        return response()->json(['data' => $user], 201);
+        return response()->json(['data' => $user, 'verification_sent' => $sent], 201);
     }
 
     public function login(Request $r)
@@ -88,23 +93,39 @@ final class AuthController extends Controller
 
     public function verify(Request $r, string $id, string $hash)
     {
-        $user = User::findOrFail($id);
-        if (! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
-            abort(403);
+        if (! $r->hasValidSignature()) {
+            return redirect('/login?verification=invalid');
         }
-        DB::transaction(function () use ($user) {
-            DB::table('user_settings')->where('user_id', $user->id)->lockForUpdate()->first();
-            $user->markEmailAsVerified();
-        });
-        event(new Verified($user));
+        [$user, $newlyVerified] = DB::transaction(function () use ($id, $hash) {
+            DB::table('user_settings')->where('user_id', $id)->lockForUpdate()->first();
+            $user = User::whereKey($id)->lockForUpdate()->firstOrFail();
+            if (! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+                abort(403);
+            }
+            $newlyVerified = ! $user->hasVerifiedEmail();
+            if ($newlyVerified) {
+                $user->markEmailAsVerified();
+            }
 
-        return redirect('/?verified=1');
+            return [$user, $newlyVerified];
+        });
+        if ($newlyVerified) {
+            event(new Verified($user));
+            // A first confirmation proves possession of the mailbox. Do not
+            // turn an already-used verification link into a reusable login.
+            if (! $r->user() || $r->user()->id === $user->id) {
+                Auth::guard('web')->login($user);
+                $r->session()->regenerate();
+            }
+        }
+
+        return redirect($r->user()?->id === $user->id ? '/?verified=1' : '/login?verified=1');
     }
 
-    public function resend(Request $r)
+    public function resend(Request $r, VerificationMail $mail)
     {
-        if (! $r->user()->hasVerifiedEmail()) {
-            $r->user()->sendEmailVerificationNotification();
+        if (! $r->user()->hasVerifiedEmail() && ! $mail->send($r->user())) {
+            throw new DomainError('MAIL_DELIVERY_FAILED', 503);
         }
 
         return ['data' => ['message' => 'VERIFICATION_SENT']];

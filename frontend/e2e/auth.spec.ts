@@ -37,7 +37,26 @@ test("register, email verification, income, expense, password reset and user iso
     mailOrigin + "/auth/verify-email/" + me.data.user.id + "/[^\\s<>()]+",
   );
   await expect.poll(() => mailbox().match(pattern)?.[0]).toBeTruthy();
-  await page.goto(mailbox().match(pattern)![0].replaceAll("&amp;", "&"));
+  const confirmationContext = await page.context().browser()!.newContext();
+  try {
+    const confirmationPage = await confirmationContext.newPage();
+    await confirmationPage.goto(
+      mailbox().match(pattern)![0].replaceAll("&amp;", "&"),
+    );
+    await expect(confirmationPage.locator(".currency-balance")).toHaveCount(4);
+    expect(
+      (
+        await confirmationPage.request.get(
+          new URL("/api/v1/me", confirmationPage.url()).href,
+        )
+      ).status(),
+    ).toBe(200);
+  } finally {
+    await confirmationContext.close();
+  }
+  await page
+    .getByRole("button", { name: "Am confirmat emailul", exact: true })
+    .click();
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
   ).toHaveCount(4);
@@ -127,4 +146,59 @@ test("register, email verification, income, expense, password reset and user iso
   expect(
     (await page.request.get("/api/v1/accounts?user_id=" + foreign)).status(),
   ).toBe(200);
+});
+
+test("registration mail failure offers resend with feedback and a cooldown", async ({
+  page,
+}, info) => {
+  const email = `mail-retry-${info.project.name}-${Date.now()}@example.test`;
+  await page.route("**/auth/register", async (route) => {
+    const response = await route.fetch();
+    expect(response.status()).toBe(201);
+    await route.fulfill({
+      response,
+      json: { ...(await response.json()), verification_sent: false },
+    });
+  });
+  let attempts = 0;
+  await page.route("**/auth/resend-verification", async (route) => {
+    attempts++;
+    if (attempts === 1) {
+      await route.fulfill({
+        status: 503,
+        json: { error: { code: "MAIL_DELIVERY_FAILED" } },
+      });
+    } else await route.continue();
+  });
+  await page.goto("/register");
+  await page.getByLabel("Nume complet").fill("Mail retry");
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page
+    .getByLabel("Parolă", { exact: true })
+    .fill("registration-test-123");
+  await page.getByLabel("Confirmă parola").fill("registration-test-123");
+  await page.getByRole("button", { name: "Creează cont", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Confirmă adresa de email pentru a continua",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Contul tău este păstrat.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Retrimite scrisoarea", exact: true })
+    .click();
+  await expect(
+    page.getByText("Contul tău este păstrat.", { exact: false }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Retrimite scrisoarea", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toHaveText("Scrisoare trimisă");
+  await expect(
+    page.getByRole("button", { name: /Retrimite scrisoarea \(\d+\)/ }),
+  ).toBeDisabled();
+  expect((await page.request.get("/api/v1/accounts")).status()).toBe(403);
 });

@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -39,6 +40,7 @@ class AuthTest extends TestCase
         $this->assertDatabaseCount('categories', 15);
         $this->assertDatabaseCount('accounts', 1);
         $this->getJson('/api/v1/accounts')->assertForbidden();
+        $this->get('/api/v1/accounts')->assertForbidden()->assertJsonPath('error.code', 'EMAIL_NOT_VERIFIED');
         $link = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $u->id, 'hash' => sha1($u->email)]);
         $this->get($link)->assertRedirect('/?verified=1');
         Auth::forgetGuards();
@@ -67,6 +69,83 @@ class AuthTest extends TestCase
         $this->assertSame('changed@example.test', $u->fresh()->email);
         $this->assertNull($u->fresh()->pending_email);
         $this->get($link)->assertForbidden();
+    }
+
+    public function test_failed_verification_mail_preserves_registration_and_recovery_session(): void
+    {
+        Notification::shouldReceive('send')->andThrow(new TransportException('private transport diagnostic'));
+        $payload = ['full_name' => 'Mail retry', 'email' => ' Retry@Example.Test ', 'password' => 'password-long-123', 'password_confirmation' => 'password-long-123', 'locale' => 'ru'];
+        $response = $this->postJson('/auth/register', $payload)->assertCreated()->assertJsonPath('verification_sent', false);
+        $user = User::findOrFail($response->json('data.id'));
+        $this->assertSame('retry@example.test', $user->email);
+        $this->assertAuthenticatedAs($user);
+        $this->getJson('/api/v1/me')->assertOk()->assertJsonPath('data.settings.locale', 'ru');
+        $this->getJson('/api/v1/accounts')->assertForbidden();
+        $this->postJson('/auth/resend-verification')->assertStatus(503)->assertJsonPath('error.code', 'MAIL_DELIVERY_FAILED');
+        $this->assertNull($user->fresh()->email_verified_at);
+        $this->postJson('/auth/register', $payload)->assertStatus(422);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('accounts', 1);
+        Notification::fake();
+        $this->travel(61)->seconds();
+        $this->postJson('/auth/resend-verification')->assertOk();
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_first_email_confirmation_signs_in_from_another_browser_but_replay_does_not(): void
+    {
+        $user = $this->user();
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1($user->email)]);
+        $this->assertGuest();
+        $this->get($url)->assertRedirect('/?verified=1');
+        $this->assertAuthenticatedAs($user);
+        $this->getJson('/api/v1/accounts')->assertOk();
+        $this->postJson('/auth/logout')->assertOk();
+        Auth::forgetGuards();
+        $this->get($url)->assertRedirect('/login?verified=1');
+        $this->assertGuest();
+        $this->getJson('/api/v1/me')->assertUnauthorized();
+    }
+
+    public function test_invalid_or_expired_verification_links_do_not_verify_or_sign_in(): void
+    {
+        $user = $this->user();
+        $args = ['id' => $user->id, 'hash' => sha1($user->email)];
+        $expired = URL::temporarySignedRoute('verification.verify', now()->subMinute(), $args);
+        $this->get($expired)->assertRedirect('/login?verification=invalid');
+        $signed = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), $args);
+        $this->get($signed.'tampered')->assertRedirect('/login?verification=invalid');
+        $wrongHash = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1('another@example.test')]);
+        $this->get($wrongHash)->assertForbidden();
+        $this->assertNull($user->fresh()->email_verified_at);
+        $this->assertGuest();
+    }
+
+    public function test_confirmation_does_not_switch_another_authenticated_account(): void
+    {
+        $user = $this->user();
+        $other = User::create(['email' => 'other@example.test', 'full_name' => 'Other', 'password' => 'password-long-123']);
+        app(WorkspaceService::class)->initialize($other->id);
+        $this->actingAs($other);
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1($user->email)]);
+        $this->get($url)->assertRedirect('/login?verified=1');
+        $this->assertAuthenticatedAs($other);
+        $this->assertNotNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_resending_is_throttled_and_verification_message_matches_locale(): void
+    {
+        Notification::fake();
+        $user = $this->user();
+        $this->actingAs($user);
+        $this->postJson('/auth/resend-verification')->assertOk();
+        $this->postJson('/auth/resend-verification')->assertStatus(429);
+        Notification::assertSentToTimes($user, VerifyEmail::class, 1);
+        DB::table('user_settings')->where('user_id', $user->id)->update(['locale' => 'ru']);
+        $message = (new VerifyEmail)->toMail($user);
+        $this->assertSame('Norocel: подтвердите email', $message->subject);
+        $this->assertSame('Подтвердить email и войти', $message->actionText);
+        $this->assertStringContainsString('/auth/verify-email/'.$user->id.'/', $message->actionUrl);
     }
 
     public function test_admin_manage_roles_audit_and_public_profile_cannot_change_privileges(): void

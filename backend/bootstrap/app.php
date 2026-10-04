@@ -2,6 +2,7 @@
 
 use App\Domain\DomainError;
 use App\Http\Middleware\PrivateResponses;
+use App\Http\Middleware\RequireVerifiedEmail;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
@@ -21,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->statefulApi();
         $middleware->convertEmptyStringsToNull(except: [fn ($r) => $r->is('api/*')]);
-        $middleware->alias(['auth.session' => AuthenticateSession::class]);
+        $middleware->alias(['auth.session' => AuthenticateSession::class, 'verified' => RequireVerifiedEmail::class]);
         $middleware->append(PrivateResponses::class);
         $middleware->redirectGuestsTo('/login');
     })

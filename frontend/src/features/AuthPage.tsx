@@ -1,9 +1,9 @@
 import { Wallet, Target, ArrowLeftRight } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { request, csrf } from "../data/api";
 import { clearSummaries } from "../data/offline";
-import { useT } from "../i18n";
+import { LocaleContext, useT } from "../i18n";
 import { ErrorMessage } from "../components/ui";
 
 export function AuthPage({
@@ -12,6 +12,7 @@ export function AuthPage({
   onAuthenticated: () => Promise<void>;
 }) {
   const t = useT(),
+    locale = useContext(LocaleContext),
     location = useLocation(),
     navigate = useNavigate();
   const mode =
@@ -54,8 +55,13 @@ export function AuthPage({
               token: search.get("token") ?? "",
               email: search.get("email") ?? "",
             }
-          : values;
-      const r = await request<{ data: { message?: string } }>(
+          : mode === "register"
+            ? { ...values, locale }
+            : values;
+      const r = await request<{
+        data: { message?: string };
+        verification_sent?: boolean;
+      }>(
         "/auth/" +
           {
             login: "login",
@@ -69,7 +75,12 @@ export function AuthPage({
       if (mode === "login" || mode === "register") {
         await clearSummaries();
         await onAuthenticated();
-        navigate("/", { replace: true });
+        navigate(
+          mode === "register" && r.verification_sent === false
+            ? "/?verification=delivery-failed"
+            : "/",
+          { replace: true },
+        );
       } else setMessage(r.data.message ?? "saved");
     } catch (e) {
       setError(e);
@@ -103,6 +114,17 @@ export function AuthPage({
             mode === "forgot" ? "sendReset" : mode === "reset" ? "reset" : mode,
           )}
         </h2>
+        {search.get("verified") === "1" && (
+          <p className="success" role="status">
+            {t("emailVerified")}
+          </p>
+        )}
+        {search.get("verification") === "invalid" && (
+          <p role="alert">{t("verificationInvalid")}</p>
+        )}
+        {mode === "register" && (
+          <p className="hint">{t("registrationVerification")}</p>
+        )}
         <form onSubmit={submit}>
           <fieldset disabled={busy}>
             {fields.map((key) => (
