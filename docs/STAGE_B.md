@@ -25,7 +25,7 @@ php artisan norocel:fx-sync --from=2026-09-01 --to=2026-09-30
 php artisan norocel:fx-sync --from=2026-09-01 --to=2026-09-30 --force
 ```
 
-Один вызов CLI ограничен интервалом 366 дней. Daily cron на Timeweb использует `/opt/php8.5/bin/php`; день определяется в Europe/Chisinau. Время cron трактуется часовым поясом сервера. Логи — `storage/logs/fx-sync.log`, без финансовых данных.
+Один вызов CLI ограничен интервалом 366 дней. Daily cron на Timeweb использует `/opt/php8.5/bin/php`; день определяется в Europe/Chisinau. В панели создано ежедневное расписание 06:15, UTC+3. Логи — `storage/logs/fx-sync.log`, без финансовых данных. При выпуске загружены все 157 дат за 2026-05-01 — 2026-10-04 без ошибок провайдера.
 
 ## CSV
 
@@ -48,3 +48,5 @@ UI удерживает неизвестный результат и исход�
 `backend/tests/Feature/StageBTest.php`: номинал 100, cross USD→EUR, corrections/replay, семидневная граница и запрет будущих курсов, unsafe/incomplete XML, исторические даты и округление каждой строки, budget и base-currency неизменность, missing-rate subtotal, отсутствие HTTP при финансовом save, строгие/возможные дубли, идентичные покупки, failed batch rollback, stale/generation/ownership, quoting/multiline/formula round trip, transfer/exchange/voided, Windows-1251 и лимиты.
 
 `frontend/e2e/stage-b.spec.ts`: desktop/mobile, реальный HTTP/MySQL, RON и неполная оценка, mapping/confirmation, два одинаковых расхода, повтор собственного CSV и запрет применения строгих дублей. Финансовые API не подменяются.
+
+Выпуск `6c912d0` развёрнут на [norocel.noros.net](https://norocel.noros.net/) с сохранением контрольных сумм существующих данных и `.env`. Полная локальная проверка: 41 backend tests / 413 assertions, 4 frontend unit, 14 E2E. [GitHub CI](https://github.com/Benderburg/finances/actions/runs/37197678143) успешно завершён на PHP 8.2/8.5. Production smoke check подтвердил исторические курсы, защищённый CSV export и обновление PWA; финансовые тестовые записи на production не создавались. Подробности — [Timeweb deployment](TIMEWEB_DEPLOYMENT.md).

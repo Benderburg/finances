@@ -69,3 +69,8 @@ Service worker действительно установлен и контрол
 ## Инкремент B — 2026-10-04
 
 После приёмки A добавлены RON, версионные BNM reference/historical rates, cross-currency valuation для dashboard/reports/budgets, indicative quote, CSV export с обратимой защитой Excel и атомарный additive import с preview/mapping/duplicate confirmation. Серверная проверка PHP 8.5: **41 tests / 413 assertions**, frontend unit: **4 passed**, production build успешен. Полный E2E на PHP-FPM/Nginx: **14 passed**, desktop/mobile, включая CSV и RON. Детали и практические пределы — [Stage B](docs/STAGE_B.md). Обновление использует отдельную миграцию и сохраняет существующие workspace/env/APP_KEY.
+
+- [x] Этап B (`6c912d0`) развёрнут на Timeweb; контрольные суммы существующих данных и `.env` совпали до/после обновления.
+- [x] История BNM: 157 успешных дат, 2026-05-01 — 2026-10-04; ежедневное обновление включено в панели на 06:15 UTC+3.
+- [x] Проверены защищённый CSV export, исторические курсы, `/csv` deep link, HTTPS/PWA headers и активация нового SW с сохранением сессии.
+- [x] [CI кода этапа B](https://github.com/Benderburg/finances/actions/runs/37197678143) успешно завершён на PHP 8.2/8.5.
