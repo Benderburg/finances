@@ -77,8 +77,8 @@ export function AuthPage({
         await onAuthenticated();
         navigate(
           mode === "register" && r.verification_sent === false
-            ? "/?verification=delivery-failed"
-            : "/",
+            ? "/app?verification=delivery-failed"
+            : "/app",
           { replace: true },
         );
       } else setMessage(r.data.message ?? "saved");
@@ -181,6 +181,7 @@ export function AuthPage({
           </button>
         </form>
         <div className="auth-links">
+          <a href="/">{t("publicSite")}</a>
           <Link to={mode === "login" ? "/register" : "/login"}>
             {t(mode === "login" ? "register" : "login")}
           </Link>

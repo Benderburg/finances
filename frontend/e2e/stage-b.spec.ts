@@ -41,7 +41,7 @@ test("RON incomplete valuation and additive CSV with explicit duplicate confirma
   });
   expect(created.ok()).toBeTruthy();
   const account = (await created.json()).data;
-  await page.goto("/");
+  await page.goto("/app");
   await page.getByText("Cursuri și evaluare", { exact: true }).click();
   await page.getByLabel("Data evaluării", { exact: true }).fill("2020-01-01");
   await expect(page.locator(".valuation-settings")).toContainText(

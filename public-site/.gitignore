@@ -1,0 +1,9 @@
+/vendor/
+/.env
+/database/*.sqlite*
+/bootstrap/cache/*.php
+/storage/**
+!/storage/**/.gitignore
+/public/storage
+/public/vendor/
+/.phpunit.cache/

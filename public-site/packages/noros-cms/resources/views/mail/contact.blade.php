@@ -1,0 +1,3 @@
+{{ $senderName }} <{{ $senderEmail }}>
+
+{{ $messageText }}

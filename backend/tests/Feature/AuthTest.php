@@ -42,7 +42,7 @@ class AuthTest extends TestCase
         $this->getJson('/api/v1/accounts')->assertForbidden();
         $this->get('/api/v1/accounts')->assertForbidden()->assertJsonPath('error.code', 'EMAIL_NOT_VERIFIED');
         $link = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $u->id, 'hash' => sha1($u->email)]);
-        $this->get($link)->assertRedirect('/?verified=1');
+        $this->get($link)->assertRedirect('/app?verified=1');
         Auth::forgetGuards();
         $this->getJson('/api/v1/accounts')->assertOk();
         $this->postJson('/auth/logout')->assertOk();
@@ -97,7 +97,7 @@ class AuthTest extends TestCase
         $user = $this->user();
         $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), ['id' => $user->id, 'hash' => sha1($user->email)]);
         $this->assertGuest();
-        $this->get($url)->assertRedirect('/?verified=1');
+        $this->get($url)->assertRedirect('/app?verified=1');
         $this->assertAuthenticatedAs($user);
         $this->getJson('/api/v1/accounts')->assertOk();
         $this->postJson('/auth/logout')->assertOk();

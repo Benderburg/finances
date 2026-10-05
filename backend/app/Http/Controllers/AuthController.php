@@ -119,7 +119,7 @@ final class AuthController extends Controller
             }
         }
 
-        return redirect($r->user()?->id === $user->id ? '/?verified=1' : '/login?verified=1');
+        return redirect($r->user()?->id === $user->id ? '/app?verified=1' : '/login?verified=1');
     }
 
     public function resend(Request $r, VerificationMail $mail)

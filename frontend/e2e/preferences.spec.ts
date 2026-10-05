@@ -39,7 +39,7 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   ).toHaveCount(4);
   await page.goto("/settings");
   await page.getByLabel("Păstrează ultima sinteză pe acest dispozitiv").check();
-  await page.goto("/");
+  await page.goto("/app");
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
   ).toHaveCount(4);
@@ -91,7 +91,7 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   ).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await settings(page, { locale: "ro", theme: "system" });
-  await page.goto("/");
+  await page.goto("/app");
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
   ).toHaveCount(4);

@@ -14,3 +14,10 @@
 **/migration-output.txt
 
 **/.npm-cache/
+
+/backend/public/js/
+/backend/public/css/
+/backend/public/vendor/
+/backend/public/fonts/
+/backend/public/site/
+/backend/public/img/norocel/

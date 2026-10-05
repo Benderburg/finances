@@ -293,7 +293,7 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
     fullPage: true,
   });
   await page.emulateMedia({ media: "screen" });
-  await goto(page, "/");
+  await goto(page, "/app");
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
   ).toHaveCount(4);

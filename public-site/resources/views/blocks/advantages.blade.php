@@ -1,0 +1,2 @@
+<section class="feature-section wrap"><div class="section-heading"><div><p class="eyebrow">{{ $data['eyebrow'] }}</p><h2>{{ $data['title'] }}</h2></div><p>{{ $data['description'] }}</p></div>
+<div class="features-grid">@foreach($data['items'] as $item)<article class="feature-card"><span class="feature-icon" aria-hidden="true">@include('components.icon', ['icon' => $item['icon']])</span><h3>{{ $item['title'] }}</h3><p>{{ $item['description'] }}</p></article>@endforeach</div></section>

@@ -30,7 +30,10 @@ self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')sel
 self.addEventListener('fetch',event=>{
  const url=new URL(event.request.url);
  if(event.request.method!=='GET'||url.origin!==location.origin||/^\\/(api|auth|sanctum)(\\/|$)/.test(url.pathname)||url.pathname.startsWith('/admin')||url.pathname.startsWith('/backup'))return;
- if(event.request.mode==='navigate'){event.respondWith(fetch(event.request).catch(()=>caches.match('/build/index.html')));return;}
+ if(event.request.mode==='navigate'){
+  if(!/^\\/(app|login|register|forgot-password|reset-password|operations|accounts|goals|savings|budgets|liabilities|reports|categories|csv|settings|more)(\\/|$)/.test(url.pathname))return;
+  event.respondWith(fetch(event.request).catch(()=>caches.match('/build/index.html')));return;
+ }
  if(ASSETS.includes(url.pathname))event.respondWith(caches.open(CACHE).then(async cache=>(await cache.match(event.request))||fetch(event.request)));
 });
 `,

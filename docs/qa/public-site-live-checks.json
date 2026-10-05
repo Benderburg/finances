@@ -1,0 +1,188 @@
+{
+  "checked": 45,
+  "sitemap_urls": 27,
+  "http_redirect": "https://norocel.noros.net/ru",
+  "certificate_expires": "Dec  4 00:22:29 2026 GMT",
+  "results": [
+    {
+      "path": "/ru",
+      "status": 200
+    },
+    {
+      "path": "/ru/features",
+      "status": 200
+    },
+    {
+      "path": "/ru/about",
+      "status": 200
+    },
+    {
+      "path": "/ru/privacy",
+      "status": 200
+    },
+    {
+      "path": "/ru/terms",
+      "status": 200
+    },
+    {
+      "path": "/ru/blog",
+      "status": 200
+    },
+    {
+      "path": "/ru/blog/budget-without-pressure",
+      "status": 200
+    },
+    {
+      "path": "/ru/blog/separate-savings",
+      "status": 200
+    },
+    {
+      "path": "/ru/blog/plan-a-purchase",
+      "status": 200
+    },
+    {
+      "path": "/ro",
+      "status": 200
+    },
+    {
+      "path": "/ro/features",
+      "status": 200
+    },
+    {
+      "path": "/ro/about",
+      "status": 200
+    },
+    {
+      "path": "/ro/privacy",
+      "status": 200
+    },
+    {
+      "path": "/ro/terms",
+      "status": 200
+    },
+    {
+      "path": "/ro/blog",
+      "status": 200
+    },
+    {
+      "path": "/ro/blog/budget-without-pressure",
+      "status": 200
+    },
+    {
+      "path": "/ro/blog/separate-savings",
+      "status": 200
+    },
+    {
+      "path": "/ro/blog/plan-a-purchase",
+      "status": 200
+    },
+    {
+      "path": "/en",
+      "status": 200
+    },
+    {
+      "path": "/en/features",
+      "status": 200
+    },
+    {
+      "path": "/en/about",
+      "status": 200
+    },
+    {
+      "path": "/en/privacy",
+      "status": 200
+    },
+    {
+      "path": "/en/terms",
+      "status": 200
+    },
+    {
+      "path": "/en/blog",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/budget-without-pressure",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/separate-savings",
+      "status": 200
+    },
+    {
+      "path": "/en/blog/plan-a-purchase",
+      "status": 200
+    },
+    {
+      "path": "/site/site.css",
+      "status": 200
+    },
+    {
+      "path": "/site/site.js",
+      "status": 200
+    },
+    {
+      "path": "/site/favicon.svg",
+      "status": 200
+    },
+    {
+      "path": "/site/manrope.woff2",
+      "status": 200
+    },
+    {
+      "path": "/img/norocel/blog-budget.svg",
+      "status": 200
+    },
+    {
+      "path": "/img/norocel/blog-savings.svg",
+      "status": 200
+    },
+    {
+      "path": "/img/norocel/blog-goals.svg",
+      "status": 200
+    },
+    {
+      "path": "/img/norocel/social-preview.png",
+      "status": 200
+    },
+    {
+      "path": "/css/filament/filament/app.css",
+      "status": 200
+    },
+    {
+      "path": "/fonts/filament/filament/inter/index.css",
+      "status": 200
+    },
+    {
+      "path": "/ru/nonexistent-page",
+      "status": 404
+    },
+    {
+      "path": "/api/v1/me",
+      "status": 401
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200
+    },
+    {
+      "path": "/cms/login?locale=en",
+      "status": 200
+    },
+    {
+      "path": "/manifest.webmanifest",
+      "status": 200
+    },
+    {
+      "path": "/up",
+      "status": 200
+    },
+    {
+      "path": "/site-health",
+      "status": 200
+    }
+  ]
+}

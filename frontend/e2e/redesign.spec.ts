@@ -297,7 +297,7 @@ for (const theme of ["light", "dark"])
       await fixture(page, theme);
       await page.setViewportSize({ width, height: 900 });
       for (const path of [
-        "/",
+        "/app",
         "/accounts",
         "/operations",
         "/savings",
@@ -321,7 +321,7 @@ for (const theme of ["light", "dark"])
           path,
         ).toBe(true);
         await expect(page.getByRole("alert")).toHaveCount(0);
-        if (path === "/") {
+        if (path === "/app") {
           await expect(page.locator(".hero-balance")).toContainText(
             "14 750,00 MDL",
           );
@@ -342,7 +342,7 @@ test("quick actions, savings transfer, exchange and custom confirmations", async
 }) => {
   const writes = await fixture(page, "light");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/app");
   await page.locator(".quick-add").click();
   let dialog = page.getByRole("dialog");
   await expect(dialog).toHaveAccessibleName("Что хотите записать?");

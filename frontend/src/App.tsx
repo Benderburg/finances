@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Link,
   NavLink,
+  Navigate,
   Route,
   Routes,
   useNavigate,
@@ -106,16 +107,14 @@ export function App() {
           localStorage.removeItem("norocel-pending-logout");
           setPending(false);
           cache.clear();
-          navigate("/login", { replace: true });
-          void me.refetch();
+          window.location.assign("/");
         })
         .catch((error) => {
           if (error instanceof ApiError && error.status === 401) {
             localStorage.removeItem("norocel-pending-logout");
             setPending(false);
             cache.clear();
-            navigate("/login", { replace: true });
-            void me.refetch();
+            window.location.assign("/");
           } else setLogoutError(error);
         });
     }
@@ -244,7 +243,7 @@ export function App() {
   );
 }
 const navigation = [
-  { path: "/", key: "home", icon: Home },
+  { path: "/app", key: "home", icon: Home },
   { path: "/operations", key: "operations", icon: ArrowLeftRight },
   { path: "/accounts", key: "accounts", icon: Wallet },
   { path: "/goals", key: "goals", icon: Target },
@@ -309,13 +308,13 @@ function Workspace({
         {t("skipToContent")}
       </a>
       <aside className="sidebar">
-        <Link className="brand" to="/">
+        <Link className="brand" to="/app">
           <span className="brand-mark">✦</span>Norocel
         </Link>
         <p className="nav-label">{t("yourFinances")}</p>
         <nav aria-label={t("navigation")}>
           {navigation.map(({ path, key, icon: Icon }) => (
-            <NavLink key={key} to={path} end={path === "/"}>
+            <NavLink key={key} to={path} end={path === "/app"}>
               <Icon size={19} />
               {t(key)}
             </NavLink>
@@ -326,6 +325,10 @@ function Workspace({
               {t("admin")}
             </NavLink>
           )}
+          <a href="/">
+            <ChevronRight size={19} />
+            {t("publicSite")}
+          </a>
         </nav>
         <div className="sidebar-bottom">
           <div className="user-avatar">
@@ -346,7 +349,7 @@ function Workspace({
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <Link className="mobile-brand" to="/">
+          <Link className="mobile-brand" to="/app">
             ✦ Norocel
           </Link>
           <span className="desktop-greeting">
@@ -399,8 +402,10 @@ function Workspace({
           tabIndex={-1}
         >
           <Routes>
+            <Route path="/login" element={<Navigate to="/app" replace />} />
+            <Route path="/register" element={<Navigate to="/app" replace />} />
             <Route
-              path="/"
+              path="/app"
               element={
                 <DashboardPage
                   session={session}
@@ -466,7 +471,7 @@ function Workspace({
                   <div className="more-menu">
                     {navigation
                       .filter(
-                        (item) => !["/", "/operations"].includes(item.path),
+                        (item) => !["/app", "/operations"].includes(item.path),
                       )
                       .map(({ path, key, icon: Icon }) => (
                         <Link key={key} to={path}>
@@ -480,6 +485,7 @@ function Workspace({
                         {t("admin")}
                       </Link>
                     )}
+                    <a href="/">{t("publicSite")}</a>
                   </div>
                 </>
               }
@@ -501,7 +507,7 @@ function Workspace({
         </main>
       </div>
       <nav className="bottom-nav" aria-label={t("navigation")}>
-        <NavLink to="/" end>
+        <NavLink to="/app" end>
           <Home size={21} />
           {t("home")}
         </NavLink>

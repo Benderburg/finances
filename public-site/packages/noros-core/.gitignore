@@ -1,0 +1,8 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.env
+/auth.json
+*.sqlite*
+/npm-debug.log

@@ -791,6 +791,7 @@ const copy: Record<string, [string, string, string]> = {
   sendReset: ["Trimite link", "Отправить ссылку", "Send reset link"],
   reset: ["Setează parola nouă", "Установить новый пароль", "Set new password"],
   logout: ["Ieșire", "Выйти", "Sign out"],
+  publicSite: ["Despre Norocel", "На сайт Norocel", "Norocel website"],
   verify: [
     "Confirmă adresa de email pentru a continua",
     "Подтвердите email для продолжения",

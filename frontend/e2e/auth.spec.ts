@@ -93,7 +93,7 @@ test("register, email verification, income, expense, password reset and user iso
     .selectOption({ label: "Alimentație" });
   await dialog.getByRole("button", { name: "Salvează", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.goto("/");
+  await page.goto("/app");
   await expect(page.locator(".currency-balance:first-child")).toContainText(
     "300,00 MDL",
   );
@@ -102,9 +102,8 @@ test("register, email verification, income, expense, password reset and user iso
     .getByRole("main")
     .getByRole("button", { name: "Ieșire", exact: true })
     .click();
-  await expect(
-    page.getByRole("button", { name: "Autentificare", exact: true }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/login");
   await page.goto("/forgot-password");
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Trimite link", exact: true }).click();
@@ -131,9 +130,8 @@ test("register, email verification, income, expense, password reset and user iso
     .getByRole("main")
     .getByRole("button", { name: "Ieșire", exact: true })
     .click();
-  await expect(
-    page.getByRole("button", { name: "Autentificare", exact: true }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await page.goto("/login");
   await login(page, "dev@norocel.test", "local-testing-123");
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
