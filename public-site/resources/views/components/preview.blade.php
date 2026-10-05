@@ -1,6 +1,6 @@
 @if($kind === 'dashboard')
 <div class="app-preview" aria-label="{{ __('site.demo') }}">
-    <div class="preview-top"><strong><span class="brand-symbol">✦</span> Norocel</strong><span class="preview-avatar">A</span></div>
+    <div class="preview-top"><img class="preview-logo" src="{{ asset('icons/logo.svg') }}" width="1040" height="280" alt="Norocel"><span class="preview-avatar">A</span></div>
     <p class="preview-greeting">{{ __('site.goodDay') }} <span aria-hidden="true">☀</span></p>
     <div class="balance-card"><div><span>{{ __('site.mainBudget') }}</span><span class="currency-pill">MDL</span></div><strong>12 450<span>,00</span></strong><small>{{ __('site.available') }}</small><div class="balance-stats"><span>↙ {{ __('site.income') }}<b>18 000 MDL</b></span><span>↗ {{ __('site.expense') }}<b>4 320 MDL</b></span></div></div>
     <div class="preview-actions">@foreach(['expense' => '↗', 'income' => '↙', 'transfer' => '⇄', 'save' => '↓'] as $key => $symbol)<div><span>{{ $symbol }}</span><small>{{ __('site.'.$key) }}</small></div>@endforeach</div>

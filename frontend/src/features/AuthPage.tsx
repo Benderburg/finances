@@ -5,6 +5,7 @@ import { request, csrf } from "../data/api";
 import { clearSummaries } from "../data/offline";
 import { LocaleContext, useT } from "../i18n";
 import { ErrorMessage } from "../components/ui";
+import { Logo } from "../components/Brand";
 
 export function AuthPage({
   onAuthenticated,
@@ -91,9 +92,8 @@ export function AuthPage({
   return (
     <main className="auth-shell">
       <div className="auth-intro">
-        <span className="brand-mark">✦</span>
         <h1>
-          Norocel<span>2</span>
+          <Logo />
         </h1>
         <p>{t("overview")}</p>
         <div className="auth-decoration">

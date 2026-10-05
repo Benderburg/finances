@@ -10,11 +10,43 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="description" content="Norocel — finances, goals and clarity." />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" sizes="16x16 32x32 48x48" href="/favicon.ico?v=logo-1" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/icons/apple-touch-icon.png"
+    />
+    <link rel="stylesheet" href="/icons/loader.css" />
+    <script src="/icons/boot.js"></script>
     <title>Norocel 2</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main
+        class="logo-loader logo-loader--fullscreen"
+        role="status"
+        aria-label="Se încarcă…"
+      >
+        <img
+          class="logo-loader__animation"
+          src="/icons/loader.svg"
+          width="280"
+          height="420"
+          alt=""
+        />
+        <span class="logo-loader__name" aria-hidden="true">Norocel</span>
+        <span class="logo-loader__label">Se încarcă…</span>
+      </main>
+    </div>
+    <noscript
+      ><style>
+        #root {
+          display: none;
+        }
+      </style>
+      <p>Activează JavaScript pentru a deschide Norocel.</p></noscript
+    >
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

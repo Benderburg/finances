@@ -1,4 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280"><defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -120 280 420"><style>
+  .coin{animation:coin-drop 2.2s infinite;transform-origin:191px 90px}
+  .mark{animation:pocket-settle 2.2s infinite;transform-origin:210px 250px}
+  @keyframes coin-drop{
+    0%,8%{transform:translate(14px,-130px) rotate(-14deg);opacity:0}
+    15%{opacity:1;transform:translate(12px,-115px) rotate(-12deg);animation-timing-function:cubic-bezier(.5,0,.9,.6)}
+    43%{transform:translate(0,0) rotate(0);opacity:1;animation-timing-function:ease-out}
+    51%{transform:translate(0,-13px) rotate(4deg)}
+    60%,72%{transform:translate(0,0) rotate(0);opacity:1}
+    87%,100%{transform:translate(12px,98px) rotate(8deg);opacity:0}
+  }
+  @keyframes pocket-settle{0%,41%,60%,100%{transform:scale(1)}46%{transform:scale(1.025,.975)}53%{transform:scale(.99,1.01)}}
+  @media(prefers-reduced-motion:reduce){.coin,.mark{animation:none}}
+</style><defs>
   <linearGradient id="ribbon" x1="40" y1="35" x2="240" y2="264" gradientUnits="userSpaceOnUse"><stop stop-color="#5082ff"/><stop offset="1" stop-color="#3159ed"/></linearGradient>
   <linearGradient id="fold" x1="36" y1="130" x2="105" y2="255" gradientUnits="userSpaceOnUse"><stop stop-color="#1d35b3"/><stop offset="1" stop-color="#335ff5"/></linearGradient>
   <linearGradient id="pocket" x1="226" y1="82" x2="249" y2="177" gradientUnits="userSpaceOnUse"><stop stop-color="#3564f5"/><stop offset="1" stop-color="#1934b5"/></linearGradient>

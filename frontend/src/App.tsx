@@ -37,6 +37,7 @@ import {
 import { currencies, formatMoney } from "./domain/money";
 import { LocaleContext, translate, useT } from "./i18n";
 import { ErrorMessage } from "./components/ui";
+import { Logo, LogoLoader } from "./components/Brand";
 import {
   AccountsPage,
   BudgetsPage,
@@ -184,7 +185,8 @@ export function App() {
         {!online ? (
           pending ? (
             <main className="offline-screen">
-              <h1>Norocel · {translate(locale, "offline")}</h1>
+              <Logo />
+              <h1>{translate(locale, "offline")}</h1>
               <p>{translate(locale, "logoutPending")}</p>
             </main>
           ) : (
@@ -206,7 +208,9 @@ export function App() {
             )}
           </main>
         ) : me.isPending ? (
-          <main className="state">{translate(locale, "loading")}</main>
+          <main>
+            <LogoLoader fullscreen />
+          </main>
         ) : !session ? (
           <>
             <div className="public-locale">
@@ -309,7 +313,7 @@ function Workspace({
       </a>
       <aside className="sidebar">
         <Link className="brand" to="/app">
-          <span className="brand-mark">✦</span>Norocel
+          <Logo />
         </Link>
         <p className="nav-label">{t("yourFinances")}</p>
         <nav aria-label={t("navigation")}>
@@ -350,7 +354,7 @@ function Workspace({
       <div className="workspace">
         <header className="topbar">
           <Link className="mobile-brand" to="/app">
-            ✦ Norocel
+            <Logo />
           </Link>
           <span className="desktop-greeting">
             {t("yourFinances")}
@@ -573,7 +577,8 @@ function Offline({ onLogout }: { onLogout: () => void }) {
   }, []);
   return (
     <main className="offline-screen">
-      <h1>Norocel · {t("offline")}</h1>
+      <Logo />
+      <h1>{t("offline")}</h1>
       <p className="warning">{t("offlineHint")}</p>
       {summary ? (
         <>

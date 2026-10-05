@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { ApiError, request } from "../data/api";
 import { ErrorMessage } from "../components/ui";
+import { Logo } from "../components/Brand";
 import { useT } from "../i18n";
 
 export function VerificationPage({
@@ -63,7 +64,7 @@ export function VerificationPage({
   }
   return (
     <main className="verification">
-      <span className="brand-mark">✦</span>
+      <Logo />
       <h1>{t("verify")}</h1>
       <p>{t("verificationInstructions")}</p>
       <p>

@@ -19,8 +19,9 @@ for name in ["public/index.php", "bootstrap/application-path.php", "app/Http/Con
     target = release / "backend" / name
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(root / "backend" / name, target)
-for name in ["build", "site", "img/norocel", "js", "css", "fonts"]:
+for name in ["build", "site", "img/norocel", "icons", "js", "css", "fonts"]:
     shutil.copytree(root / "backend/public" / name, release / "backend/public" / name, dirs_exist_ok=True)
+shutil.copy2(root / "backend/public/favicon.ico", release / "backend/public/favicon.ico")
 for source, target in [("timeweb-stage-b-check.php", "public-site-check.php"), ("public-site-owner.php", "public-site-owner.php"), ("deploy-public-site-timeweb.sh", "deploy-public-site.sh")]:
     content = (root / "scripts" / source).read_text(encoding="utf-8").replace("\r\n", "\n")
     (release / target).write_text(content, encoding="utf-8", newline="\n")

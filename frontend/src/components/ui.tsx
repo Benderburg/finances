@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ApiError, command, get, getAll } from "../data/api";
 import { useT } from "../i18n";
+import { LogoLoader } from "./Brand";
 import type { Envelope, List } from "../domain/types";
 import { inputMoney, parseMoney } from "../domain/money";
 
@@ -121,20 +122,7 @@ export function State<T>({
   children: (data: T) => ReactNode;
 }) {
   const t = useT();
-  if (query.isPending)
-    return (
-      <div className="loading-state" role="status" aria-label={t("loading")}>
-        <span className="sr-only">{t("loading")}</span>
-        <div className="skeleton skeleton-title" />
-        <div className="skeleton-grid">
-          {[0, 1, 2].map((i) => (
-            <div className="skeleton skeleton-card" key={i} />
-          ))}
-        </div>
-        <div className="skeleton skeleton-line" />
-        <div className="skeleton skeleton-line" />
-      </div>
-    );
+  if (query.isPending) return <LogoLoader />;
   if (query.isError)
     return (
       <div className="state">

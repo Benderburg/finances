@@ -26,6 +26,10 @@ class AdminPanelProvider extends PanelProvider
     {
         return $panel->default()->id('cms')->path('cms')->login(Login::class)
             ->brandName(config('app.name'))
+            ->brandLogo(asset('icons/logo.svg'))
+            ->darkModeBrandLogo(asset('icons/logo-light.svg'))
+            ->brandLogoHeight('2.5rem')
+            ->favicon(asset('icons/favicon.svg').'?v=logo-1')
             ->plugins([new CorePlugin, new CmsPlugin])
             ->pages([Dashboard::class])->widgets([AccountWidget::class])
             ->middleware([

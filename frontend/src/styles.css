@@ -474,17 +474,43 @@ summary {
 .brand:hover {
   text-decoration: none;
 }
-.brand-mark {
-  background: var(--hero);
-  color: white;
-  width: 38px;
-  height: 38px;
-  border-radius: 13px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  line-height: 1;
+.norocel-logo {
+  display: inline-block;
+  width: 164px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.norocel-logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.norocel-logo .norocel-logo__light {
+  display: none;
+}
+:root[data-theme="dark"] .norocel-logo__normal {
+  display: none;
+}
+:root[data-theme="dark"] .norocel-logo .norocel-logo__light {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"])
+    .norocel-logo__normal {
+    display: none;
+  }
+  :root:not([data-theme="light"]):not([data-theme="dark"])
+    .norocel-logo
+    .norocel-logo__light {
+    display: block;
+  }
+}
+.mobile-brand .norocel-logo {
+  width: 134px;
+}
+.verification > .norocel-logo {
+  width: 190px;
+  margin-bottom: 20px;
 }
 .nav-label {
   font-size: 10px;
@@ -1769,6 +1795,10 @@ th {
 }
 .auth-intro h1 span {
   display: none;
+}
+.auth-intro h1 .norocel-logo {
+  display: inline-block;
+  width: 360px;
 }
 .auth-intro p {
   color: var(--muted);
