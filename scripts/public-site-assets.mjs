@@ -1,4 +1,4 @@
-import { mkdirSync, copyFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, copyFileSync, cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -13,6 +13,10 @@ for (const subset of ['latin', 'latin-ext', 'cyrillic']) {
  copyFileSync(join(root,`frontend/node_modules/@fontsource-variable/manrope/files/manrope-${subset}-wght-normal.woff2`), join(siteDir,subset === 'latin' ? 'manrope.woff2' : `manrope-${subset}.woff2`));
 }
 const target = join(root,'backend/public');
+// CMS assets share the same document root as the public theme and application.
+for (const directory of ['css', 'js', 'fonts']) {
+  cpSync(join(root, 'public-site/public', directory), join(target, directory), {recursive:true});
+}
 mkdirSync(join(target,'site'),{recursive:true});
 mkdirSync(join(target,'img/norocel'),{recursive:true});
 for (const name of ['site.css','site.js','favicon.svg','manrope.woff2','manrope-latin-ext.woff2','manrope-cyrillic.woff2']) copyFileSync(join(siteDir,name),join(target,'site',name));

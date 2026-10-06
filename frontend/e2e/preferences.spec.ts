@@ -127,7 +127,12 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
   await context.setOffline(true);
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Norocel · Fără conexiune" }),
+    page
+      .locator(".offline-screen")
+      .getByRole("heading", { name: "Fără conexiune", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".offline-screen").getByRole("img", { name: "Norocel" }),
   ).toBeVisible();
   await expect(
     page.locator(".currency-balance, .offline-screen .balance-card"),
@@ -146,6 +151,8 @@ test("languages, themes, responsive layouts, offline snapshot and offline logout
     await page.evaluate(() => localStorage.getItem("norocel-summary-owner")),
   ).toBeNull();
   await context.setOffline(false);
+  await expect(page.locator(".hero h1")).toBeVisible();
+  await page.goto("/login");
   await expect(
     page.getByRole("button", { name: "Autentificare", exact: true }),
   ).toBeVisible();

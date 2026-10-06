@@ -39,7 +39,9 @@ test("lost command response retries the same key once and expired session closes
   });
   await dialog.getByRole("button", { name: "Salvează", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Norocel · Fără conexiune" }),
+    page
+      .locator(".offline-screen")
+      .getByRole("heading", { name: "Fără conexiune", exact: true }),
   ).toBeVisible();
   await context.setOffline(false);
   await expect(dialog.getByRole("alert")).toContainText("Rezultat necunoscut");

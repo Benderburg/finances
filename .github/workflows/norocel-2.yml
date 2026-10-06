@@ -3,9 +3,11 @@ on: [push, pull_request]
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
-        php: ['8.2', '8.5']
+        php: ["8.2", "8.5"]
     services:
       mysql:
         image: mysql:8.4
@@ -22,7 +24,7 @@ jobs:
           extensions: bcmath, pdo_mysql, intl, mbstring
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: composer install --no-interaction --prefer-dist
@@ -31,26 +33,91 @@ jobs:
         working-directory: backend
       - run: npm ci && npm run build && npm test
         working-directory: frontend
-      - run: php artisan migrate --force && php artisan norocel:local-user dev@norocel.test --name='Local Preview' --admin && php artisan serve --host=127.0.0.1 --port=8000 > /tmp/norocel-server.log 2>&1 &
+
+  browser-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: local-norocel-only
+          MYSQL_DATABASE: norocel_test
+        ports: [33067:3306]
+        options: --health-cmd="mysqladmin ping -h localhost -plocal-norocel-only" --health-interval=5s --health-timeout=3s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      # The financial backend supports PHP 8.2, but the public site requires 8.3+.
+      # Exercise the shared document root on the production PHP version.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          extensions: bcmath, pdo_mysql, pdo_sqlite, intl, mbstring, curl
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare isolated application environments
+        run: |
+          cp backend/.env.example.norocel backend/.env
+          sed -i 's/^DB_DATABASE=.*/DB_DATABASE=norocel_test/' backend/.env
+          cp public-site/.env.example.ci public-site/.env
+          touch public-site/database/ci.sqlite
+          echo "DB_DATABASE=$GITHUB_WORKSPACE/public-site/database/ci.sqlite" >> public-site/.env
+      - run: composer install --no-interaction --prefer-dist
+        working-directory: backend
+      - run: composer install --no-interaction --prefer-dist
+        working-directory: public-site
+      - name: Initialize financial QA application
+        run: |
+          php artisan key:generate
+          php artisan migrate --force
+          php artisan norocel:local-user dev@norocel.test --name='Local Preview' --admin
         working-directory: backend
         env:
-          DB_DATABASE: norocel_test
           NOROCEL_LOCAL_PASSWORD: local-testing-123
-      - run: |
+      - name: Verify and initialize public site
+        run: |
+          php artisan key:generate
+          php artisan test --compact
+          php artisan migrate --seed --force
+        working-directory: public-site
+      - name: Build application and synchronize public assets
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+          node scripts/public-site-assets.mjs
+      - name: Start shared document root
+        run: php artisan serve --host=127.0.0.1 --port=8000 > /tmp/norocel-server.log 2>&1 &
+        working-directory: backend
+      - name: Check both runtimes before browser tests
+        run: |
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:8000/up; then exit 0; fi
+            if curl --fail --silent http://127.0.0.1:8000/up; then break; fi
             sleep 1
           done
-          cat /tmp/norocel-server.log
-          exit 1
-      - run: npx playwright install --with-deps chromium && npm run test:e2e
+          curl --fail --silent http://127.0.0.1:8000/up
+          curl --fail --silent http://127.0.0.1:8000/site-health
+          curl --fail --silent http://127.0.0.1:8000/ru --output /tmp/norocel-public-site.html
+          grep -q '<html lang="ru">' /tmp/norocel-public-site.html
+          curl --fail --silent http://127.0.0.1:8000/site/site.css --output /dev/null
+          curl --fail --silent http://127.0.0.1:8000/icons/loader.svg --output /dev/null
+      - name: Run desktop and mobile browser scenarios
+        run: npx playwright install --with-deps chromium && npm run test:e2e
         working-directory: frontend
         env:
-          NOROCEL_E2E_RESET_CACHE: '1'
+          NOROCEL_E2E_RESET_CACHE: "1"
+      - name: Collect server diagnostics
+        if: failure()
+        run: |
+          cat /tmp/norocel-server.log 2>/dev/null || true
+          tail -n 100 backend/storage/logs/laravel.log 2>/dev/null || true
+          tail -n 100 public-site/storage/logs/laravel.log 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-qa-php-${{ matrix.php }}
+          name: browser-qa-php-8.5
           path: |
             frontend/test-results
             frontend/playwright-report
