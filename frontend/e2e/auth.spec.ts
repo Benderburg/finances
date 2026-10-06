@@ -102,7 +102,7 @@ test("register, email verification, income, expense, password reset and user iso
     .getByRole("main")
     .getByRole("button", { name: "Ieșire", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".hero h1")).toBeVisible();
   await page.goto("/login");
   await page.goto("/forgot-password");
   await page.getByLabel("Email", { exact: true }).fill(email);
@@ -130,7 +130,7 @@ test("register, email verification, income, expense, password reset and user iso
     .getByRole("main")
     .getByRole("button", { name: "Ieșire", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".hero h1")).toBeVisible();
   await page.goto("/login");
   await login(page, "dev@norocel.test", "local-testing-123");
   await expect(

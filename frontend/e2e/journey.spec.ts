@@ -315,9 +315,8 @@ test("real accounts, cash flow, transfers, goals, liability, backup and logout",
     .getByRole("main")
     .getByRole("button", { name: "Ieșire", exact: true })
     .click();
-  await expect(
-    page.getByRole("button", { name: "Autentificare", exact: true }),
-  ).toBeVisible();
+  await expect(page.locator(".hero h1")).toBeVisible();
+  expect((await page.request.get("/api/v1/me")).status()).toBe(401);
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Banii tăi, într-un loc" }),
